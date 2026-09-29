@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FnC 물류센터 관리 시스템 - 화면 목업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF0F2; --surface:#FFFFFF; --surface-2:#F7F8FA; --border:#DCE0E5;
+    --ink:#171B22; --ink-soft:#5B6472; --ink-faint:#9CA4AF;
+    --navy:#1D3557; --navy-soft:#3A6EA5;
+    --good:#2E9E5B; --good-bg:#E5F5EC; --warn:#E8A93A; --warn-bg:#FCF1DD;
+    --bad:#D9463A; --bad-bg:#FBE7E5; --radius:10px;
+    --mint:#4FA9A0; --mint-bg:#E7F4F2;
+    --shadow:0 1px 2px rgba(23,27,34,0.04), 0 4px 12px rgba(23,27,34,0.06);
+    --sb-bg:#1A1F2B; --sb-bg-2:#232938; --sb-line:rgba(255,255,255,0.08);
+    --sb-text:#9099AC; --sb-text-dim:#5C6478;
+    --accent:#E24C3E; --accent-bg:rgba(226,76,62,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+
+  /* ============ 모드 전환 스위처 (목업 전용 - 실제 화면엔 없음) ============ */
+  .mockup-switcher{position:fixed;top:12px;right:12px;z-index:999;display:flex;gap:6px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:5px;box-shadow:var(--shadow);}
+  .mockup-switcher button{border:none;background:transparent;padding:7px 12px;border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
+  .mockup-switcher button.active{background:var(--navy);color:#fff;}
+
+  /* ============ 화면 1: 로그인 ============ */
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  #login{
+    position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:20px;overflow:hidden;background:#12161f;
+  }
+  .login-slides{position:absolute;inset:0;z-index:0;}
+  .login-slides .slide{
+    position:absolute;inset:0;background-size:cover;background-position:center center;
+    opacity:0;animation:slideFade 18s infinite;
+  }
+  .login-slides .slide:nth-child(1){background-image:url('login-bg-1.jpg');animation-delay:0s;}
+  .login-slides .slide:nth-child(2){background-image:url('login-bg-2.jpg');animation-delay:6s;}
+  .login-slides .slide:nth-child(3){background-image:url('login-bg-3.jpg');animation-delay:12s;}
+  @keyframes slideFade{
+    0%{opacity:0;}
+    5%{opacity:1;}
+    28%{opacity:1;}
+    33%{opacity:0;}
+    100%{opacity:0;}
+  }
+  .login-overlay{
+    position:absolute;inset:0;z-index:1;
+    background:linear-gradient(180deg, rgba(10,14,22,0.72) 0%, rgba(10,14,22,0.55) 45%, rgba(10,14,22,0.82) 100%);
+  }
+  .login-card{position:relative;z-index:2;}
+  .login-card{
+    width:100%;max-width:380px;background:var(--surface);border-radius:16px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);padding:36px 32px 28px;
+  }
+  .login-brand{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:26px;}
+  .login-mark{width:150px;height:80px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+  .login-mark img{max-width:100%;max-height:100%;object-fit:contain;}
+  .login-brand .eyebrow{font-family:'Roboto Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px;}
+  .login-brand h1{font-family:'Oswald',sans-serif;font-weight:600;font-size:21px;margin:0;color:var(--ink);}
+  .login-brand p{font-size:12.5px;color:var(--ink-soft);margin:6px 0 0;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .field input{
+    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:9px;
+    font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);background:var(--surface-2);
+  }
+  .field input:focus{outline:none;border-color:var(--navy-soft);background:#fff;}
+
+  .login-row{display:flex;align-items:center;justify-content:space-between;margin:4px 0 20px;}
+  .checkbox-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft);}
+  .checkbox-row input{width:14px;height:14px;accent-color:var(--navy);}
+  .forgot-link{font-size:12px;color:var(--navy-soft);text-decoration:none;font-weight:600;}
+
+  .login-btn{
+    width:100%;padding:13px;border:none;border-radius:9px;background:var(--navy);color:#fff;
+    font-family:'Inter',sans-serif;font-size:14.5px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .login-btn:hover{background:#16273f;}
+  .login-btn svg{width:15px;height:15px;}
+
+  .login-footer{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:center;}
+  .login-footer p{font-size:11px;color:var(--ink-faint);margin:0;font-family:'Roboto Mono',monospace;}
+
+  /* ============ 화면 2/3: 로그인 후 (사이드바 레이아웃) ============ */
+  #app, #app-admin{min-height:100vh;display:flex;}
+
+  .sidebar{
+    width:246px;flex-shrink:0;background:var(--sb-bg);color:#fff;
+    display:flex;flex-direction:column;padding:14px 12px;position:sticky;top:0;height:100vh;
+  }
+  .sb-brand{
+    display:flex;align-items:center;gap:10px;background:#fff;border-radius:11px;
+    padding:9px 10px;margin-bottom:16px;
+  }
+  .sb-brand .mark{width:36px;height:36px;border-radius:8px;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);}
+  .sb-brand .mark img{width:100%;height:100%;object-fit:contain;padding:3px;}
+  .sb-brand .txt{flex:1;min-width:0;}
+  .sb-brand .txt h1{font-family:'Inter',sans-serif;font-weight:800;font-size:13.5px;margin:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sb-brand .txt .eyebrow{font-size:10.5px;color:var(--ink-faint);margin-top:1px;}
+  .sb-brand .chevron{color:var(--ink-faint);flex-shrink:0;}
+  .sb-brand .chevron svg{width:15px;height:15px;}
+
+  .center-select{
+    margin:0 0 14px;background:var(--sb-bg-2);border:1px solid var(--sb-line);
+    border-radius:8px;padding:9px 11px;
+  }
+  .center-select .k{font-size:9.5px;color:var(--sb-text-dim);font-family:'Roboto Mono',monospace;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;}
+  .center-select select{
+    width:100%;background:transparent;border:none;color:#fff;font-family:'Inter',sans-serif;
+    font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .center-select select option{color:var(--ink);}
+
+  .sb-section-label{font-size:10.5px;color:var(--sb-text-dim);font-weight:700;letter-spacing:0.04em;margin:16px 10px 8px;}
+  .sb-nav{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;}
+  .sb-nav a{
+    display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;
+    color:var(--sb-text);text-decoration:none;font-size:13.5px;font-weight:600;
+    transition:background 0.15s,color 0.15s;position:relative;cursor:pointer;
+  }
+  .sb-nav a svg{width:17px;height:17px;flex-shrink:0;opacity:0.9;}
+  .sb-nav a:hover{background:var(--sb-bg-2);color:#fff;}
+  .sb-nav a.active{background:var(--accent);color:#fff;box-shadow:0 4px 10px rgba(226,76,62,0.35);}
+  .sb-nav a .tag{margin-left:auto;background:rgba(255,255,255,0.12);color:var(--sb-text);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px;}
+  .sb-nav a.active .tag{background:rgba(255,255,255,0.25);color:#fff;}
+  .sb-nav a .badge{margin-left:auto;background:var(--bad);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:20px;font-family:'Roboto Mono',monospace;}
+
+  .sb-footer{margin-top:auto;padding-top:14px;border-top:1px solid var(--sb-line);}
+  .sb-user{display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;}
+  .sb-user .avatar{width:34px;height:34px;border-radius:50%;background:var(--mint);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
+  .sb-user .info{min-width:0;}
+  .sb-user .name{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sb-user .role{font-size:10.5px;color:var(--sb-text-dim);}
+  .sb-logout{display:flex;align-items:center;gap:6px;width:100%;margin-top:8px;padding:8px 10px;border-radius:7px;border:1px solid var(--sb-line);background:transparent;color:var(--sb-text);font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+  .sb-logout:hover{background:var(--sb-bg-2);color:#fff;}
+  .sb-logout svg{width:13px;height:13px;}
+
+  /* main content */
+  .main{flex:1;min-width:0;padding:22px 26px;}
+  .main-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .main-header h2{font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;margin:0;color:var(--ink);}
+  .main-header .sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+  .date-pill{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 13px;font-family:'Roboto Mono',monospace;font-size:12px;font-weight:700;color:var(--ink);box-shadow:var(--shadow);}
+
+  .content-panel{display:none;}
+  .content-panel.active{display:block;}
+
+  .placeholder-card{
+    background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);
+    padding:60px 24px;text-align:center;box-shadow:var(--shadow);
+  }
+  .placeholder-card .icon{width:44px;height:44px;margin:0 auto 14px;border-radius:11px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;}
+  .placeholder-card .icon svg{width:22px;height:22px;color:var(--ink-faint);}
+  .placeholder-card h3{font-size:15px;color:var(--ink);margin:0 0 6px;}
+  .placeholder-card p{font-size:12.5px;color:var(--ink-faint);margin:0;}
+  .placeholder-card .soon-badge{display:inline-block;margin-top:14px;background:var(--warn-bg);color:#9a6a12;font-size:11px;font-weight:800;padding:5px 12px;border-radius:20px;letter-spacing:0.02em;}
+
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+  .stat-card{background:var(--surface);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);border:1px solid var(--border);}
+  .stat-card .k{font-size:11px;color:var(--ink-faint);font-weight:600;margin-bottom:6px;}
+  .stat-card .v{font-family:'Oswald',sans-serif;font-size:24px;font-weight:600;color:var(--ink);}
+  .stat-card .v span{font-size:13px;color:var(--ink-faint);font-weight:400;font-family:'Inter',sans-serif;}
+
+  /* 게시판 레이아웃 */
+  .board-layout{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start;}
+  .board-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;}
+  .board-card .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .board-card .card-head h3{font-size:14px;margin:0;color:var(--ink);}
+  .board-card .card-head .new-btn{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .board-list{list-style:none;margin:0;padding:0;}
+  .board-list li{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--surface-2);font-size:12.5px;}
+  .board-list li:last-child{border-bottom:none;}
+  .board-list .pin{background:var(--bad-bg);color:var(--bad);font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:5px;flex-shrink:0;}
+  .board-list .cat{background:var(--surface-2);color:var(--ink-soft);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:5px;flex-shrink:0;}
+  .board-list .ttl{flex:1;min-width:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .board-list .meta{color:var(--ink-faint);font-size:11px;flex-shrink:0;font-family:'Roboto Mono',monospace;}
+
+  .quicklink-card .card-head{padding:14px 18px 10px;border-bottom:none;}
+  .quicklink-card .card-head p{font-size:11px;color:var(--ink-faint);margin:2px 0 0;}
+  .quicklink-list{list-style:none;margin:0;padding:6px 10px 14px;display:flex;flex-direction:column;gap:4px;}
+  .quicklink-list li a{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:var(--ink);
+  }
+  .quicklink-list li a:hover{background:var(--surface-2);}
+  .quicklink-list .qicon{width:30px;height:30px;border-radius:8px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+  .quicklink-list .qtxt .name{font-size:12.5px;font-weight:700;color:var(--ink);}
+  .quicklink-list .qtxt .desc{font-size:10.5px;color:var(--ink-faint);margin-top:1px;}
+
+  .daily-embed{
+    background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);
+    padding:18px;display:flex;align-items:center;gap:16px;
+  }
+  .daily-embed .thumb{width:120px;height:76px;border-radius:8px;background:linear-gradient(135deg,var(--navy),var(--navy-soft));flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .daily-embed .thumb svg{width:26px;height:26px;color:#fff;opacity:0.85;}
+  .daily-embed .txt{flex:1;}
+  .daily-embed .txt h4{margin:0 0 4px;font-size:14px;color:var(--ink);}
+  .daily-embed .txt p{margin:0;font-size:12px;color:var(--ink-faint);}
+  .daily-embed .go-btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:12.5px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;gap:6px;}
+
+  @media (max-width:900px){
+    .board-layout{grid-template-columns:1fr;}
+  }
+  @media (max-width:860px){
+    .sidebar{position:fixed;left:-260px;z-index:50;transition:left 0.2s;box-shadow:0 0 30px rgba(0,0,0,0.3);}
+    .sidebar.open{left:0;}
+    .stat-row{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<div class="mockup-switcher">
+  <button class="active" onclick="showScreen('login', this)">로그인 화면</button>
+  <button onclick="showScreen('app', this)">로그인 후 (일반)</button>
+  <button onclick="showScreen('app-admin', this)">로그인 후 (관리자)</button>
+</div>
+
+<!-- ============ 화면 1: 로그인 ============ -->
+<div id="login" class="screen active">
+  <div class="login-slides">
+    <div class="slide"></div>
+    <div class="slide"></div>
+    <div class="slide"></div>
+  </div>
+  <div class="login-overlay"></div>
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-mark">
+        <img src="fnc-logo.png" alt="FnC Food & Company" />
+      </div>
+      <div class="eyebrow">Logistics Center Management</div>
+      <h1>물류센터</h1>
+      <p>센터 운영 관리 시스템</p>
+    </div>
+
+    <div class="field">
+      <label>센터 ID</label>
+      <input type="text" placeholder="예: 000물류센터" />
+    </div>
+    <div class="field">
+      <label>비밀번호</label>
+      <input type="password" placeholder="비밀번호 입력" />
+    </div>
+
+    <div class="login-row">
+      <label class="checkbox-row"><input type="checkbox" checked/> 로그인 상태 유지</label>
+      <a href="#" class="forgot-link">비밀번호 찾기</a>
+    </div>
+
+    <button class="login-btn" onclick="showScreen('app', document.querySelectorAll('.mockup-switcher button')[1])">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+      로그인
+    </button>
+
+    <div class="login-footer">
+      <p>© 2026 FnC FOOD &amp; COMPANY</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 화면 2: 로그인 후 - 일반(센터소장) ============ -->
+<div id="app" class="screen">
+  <div class="sidebar">
+    <div class="sb-brand">
+      <div class="mark"><img src="fnc-logo.png" alt="FnC"/></div>
+      <div class="txt">
+        <h1>FnC 물류센터관리</h1>
+        <div class="eyebrow">Food &amp; Company</div>
+      </div>
+      <div class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+    </div>
+
+    <ul class="sb-nav" data-scope="app">
+      <li><a href="#" class="active" onclick="switchPanel(event,'board')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H7l-3 3V4z"/></svg>
+        게시판
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'daily')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+        일일보고현황
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'cost')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
+        물류비계산
+        <span class="tag">준비중</span>
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'recruit')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        센터 구인현황
+        <span class="tag">준비중</span>
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'applicants')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg>
+        지원자 알림
+        <span class="badge">5</span>
+      </a></li>
+    </ul>
+
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="avatar">소</div>
+        <div class="info">
+          <div class="name">센터소장님</div>
+          <div class="role">동서울 물류센터</div>
+        </div>
+      </div>
+      <button class="sb-logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        로그아웃
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- 게시판 -->
+    <div class="content-panel active" data-panel="board" data-scope="app">
+      <div class="main-header">
+        <div><h2>게시판</h2><div class="sub">동서울 물류센터 · 공지 및 자료</div></div>
+        <div class="date-pill">2026-09-23 (수)</div>
+      </div>
+      <div class="board-layout">
+        <div class="board-card">
+          <div class="card-head"><h3>전체 게시글</h3><button class="new-btn">+ 새 글쓰기</button></div>
+          <ul class="board-list">
+            <li><span class="pin">공지</span><span class="ttl">9월 정기 안전점검 일정 안내</span><span class="meta">09-22</span></li>
+            <li><span class="cat">서식</span><span class="ttl">근태 매트릭스 최신 양식 업로드</span><span class="meta">09-20</span></li>
+            <li><span class="cat">공유</span><span class="ttl">추석 연휴 물류 일정 조정 건</span><span class="meta">09-18</span></li>
+            <li><span class="cat">서식</span><span class="ttl">사고경위서 작성 양식(개정판)</span><span class="meta">09-15</span></li>
+            <li><span class="cat">공유</span><span class="ttl">아워홈 WMS 점검 안내(9/25 새벽)</span><span class="meta">09-12</span></li>
+          </ul>
+        </div>
+        <div class="board-card quicklink-card">
+          <div class="card-head"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div>
+          <ul class="quicklink-list">
+            <li><a href="#"><div class="qicon">W</div><div class="qtxt"><div class="name">아워홈 WMS</div><div class="desc">물류관리시스템</div></div></a></li>
+            <li><a href="#"><div class="qicon">Q</div><div class="qtxt"><div class="name">QR 출퇴근 시스템</div><div class="desc">직원 출근체크</div></div></a></li>
+            <li><a href="#"><div class="qicon">채</div><div class="qtxt"><div class="name">채용 관리</div><div class="desc">지원자 현황</div></div></a></li>
+            <li><a href="#"><div class="qicon">전</div><div class="qtxt"><div class="name">전자결재</div><div class="desc">그룹웨어</div></div></a></li>
+            <li><a href="#"><div class="qicon">+</div><div class="qtxt"><div class="name">사이트 추가</div><div class="desc">즐겨찾기 등록</div></div></a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 일일보고현황 -->
+    <div class="content-panel" data-panel="daily" data-scope="app">
+      <div class="main-header">
+        <div><h2>일일보고현황</h2><div class="sub">동서울 물류센터 · 오늘 기준</div></div>
+        <div class="date-pill">2026-09-23 (수)</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card"><div class="k">직영 인원</div><div class="v">30 <span>명</span></div></div>
+        <div class="stat-card"><div class="k">협력사 인원</div><div class="v">140 <span>명</span></div></div>
+        <div class="stat-card"><div class="k">금일 출근</div><div class="v">162 <span>/ 170</span></div></div>
+        <div class="stat-card"><div class="k">출근율</div><div class="v" style="color:var(--good)">95.3<span>%</span></div></div>
+      </div>
+      <div class="daily-embed">
+        <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg></div>
+        <div class="txt">
+          <h4>현재 사용 중인 일일보고 대시보드</h4>
+          <p>기존에 쓰던 일일출근현황 대시보드를 이 메뉴에 그대로 연결합니다 (별도 개편 없음)</p>
+        </div>
+        <button class="go-btn">
+          기존 대시보드 열기
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M7 17L17 7M7 7h10v10"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 물류비계산 -->
+    <div class="content-panel" data-panel="cost" data-scope="app">
+      <div class="main-header">
+        <div><h2>물류비계산</h2><div class="sub">동서울 물류센터</div></div>
+      </div>
+      <div class="placeholder-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg></div>
+        <h3>물류비계산 메뉴는 준비 중입니다</h3>
+        <p>입고·출고·보관비 등 항목별 물류비 산출 기능이 이곳에 들어갈 예정입니다</p>
+        <div class="soon-badge">COMING SOON</div>
+      </div>
+    </div>
+
+    <!-- 센터 구인현황 -->
+    <div class="content-panel" data-panel="recruit" data-scope="app">
+      <div class="main-header">
+        <div><h2>센터 구인현황</h2><div class="sub">동서울 물류센터</div></div>
+      </div>
+      <div class="placeholder-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h3>센터 구인현황 메뉴는 준비 중입니다</h3>
+        <p>채용 AI 시스템과 연동한 지원자·충원 현황이 이곳에 들어갈 예정입니다</p>
+        <div class="soon-badge">COMING SOON</div>
+      </div>
+    </div>
+
+    <!-- 지원자 알림 -->
+    <div class="content-panel" data-panel="applicants" data-scope="app">
+      <div class="main-header">
+        <div><h2>지원자 알림</h2><div class="sub">동서울 물류센터</div></div>
+      </div>
+      <div class="placeholder-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg></div>
+        <h3>신규 지원자 알림 목록이 표시될 영역입니다</h3>
+        <p>채용 AI 시스템 연동 후 실시간 알림이 여기에 표시됩니다</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 화면 3: 로그인 후 - 관리자 ============ -->
+<div id="app-admin" class="screen">
+  <div class="sidebar">
+    <div class="sb-brand">
+      <div class="mark"><img src="fnc-logo.png" alt="FnC"/></div>
+      <div class="txt">
+        <h1>FnC 통합관리</h1>
+        <div class="eyebrow">Food &amp; Company</div>
+      </div>
+      <div class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+    </div>
+
+    <div class="center-select">
+      <div class="k">관리 센터 선택</div>
+      <select>
+        <option>동서울 물류센터</option>
+        <option>원주 물류센터</option>
+        <option>전체 센터 보기</option>
+      </select>
+    </div>
+
+    <ul class="sb-nav" data-scope="app-admin">
+      <li><a href="#" class="active" onclick="switchPanel(event,'board')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H7l-3 3V4z"/></svg>
+        게시판
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'daily')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+        일일보고현황
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'cost')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
+        물류비계산
+        <span class="tag">준비중</span>
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'recruit')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        센터 구인현황
+        <span class="tag">준비중</span>
+      </a></li>
+
+      <div class="sb-section-label">관리자 전용</div>
+      <li><a href="#" onclick="switchPanel(event,'applicants')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg>
+        지원자 알림
+        <span class="badge">5</span>
+      </a></li>
+      <li><a href="#" onclick="switchPanel(event,'accounts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        센터 계정관리
+      </a></li>
+    </ul>
+
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="avatar" style="background:var(--navy-soft);">관</div>
+        <div class="info">
+          <div class="name">본사 관리자</div>
+          <div class="role">전체 센터 관리 권한</div>
+        </div>
+      </div>
+      <button class="sb-logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        로그아웃
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="content-panel active" data-panel="board" data-scope="app-admin">
+      <div class="main-header">
+        <div><h2>게시판</h2><div class="sub">동서울 물류센터 · 공지 및 자료 (관리자 보기)</div></div>
+        <div class="date-pill">2026-09-23 (수)</div>
+      </div>
+      <div class="board-layout">
+        <div class="board-card">
+          <div class="card-head"><h3>전체 게시글</h3><button class="new-btn">+ 새 글쓰기</button></div>
+          <ul class="board-list">
+            <li><span class="pin">공지</span><span class="ttl">9월 정기 안전점검 일정 안내</span><span class="meta">09-22</span></li>
+            <li><span class="cat">서식</span><span class="ttl">근태 매트릭스 최신 양식 업로드</span><span class="meta">09-20</span></li>
+            <li><span class="cat">공유</span><span class="ttl">추석 연휴 물류 일정 조정 건</span><span class="meta">09-18</span></li>
+          </ul>
+        </div>
+        <div class="board-card quicklink-card">
+          <div class="card-head"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div>
+          <ul class="quicklink-list">
+            <li><a href="#"><div class="qicon">W</div><div class="qtxt"><div class="name">아워홈 WMS</div><div class="desc">물류관리시스템</div></div></a></li>
+            <li><a href="#"><div class="qicon">Q</div><div class="qtxt"><div class="name">QR 출퇴근 시스템</div><div class="desc">직원 출근체크</div></div></a></li>
+            <li><a href="#"><div class="qicon">전</div><div class="qtxt"><div class="name">전자결재</div><div class="desc">그룹웨어</div></div></a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-panel" data-panel="daily" data-scope="app-admin">
+      <div class="main-header">
+        <div><h2>일일보고현황</h2><div class="sub">동서울 물류센터 · 오늘 기준 (관리자 보기)</div></div>
+        <div class="date-pill">2026-09-23 (수)</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card"><div class="k">직영 인원</div><div class="v">30 <span>명</span></div></div>
+        <div class="stat-card"><div class="k">협력사 인원</div><div class="v">140 <span>명</span></div></div>
+        <div class="stat-card"><div class="k">금일 출근</div><div class="v">162 <span>/ 170</span></div></div>
+        <div class="stat-card"><div class="k">출근율</div><div class="v" style="color:var(--good)">95.3<span>%</span></div></div>
+      </div>
+      <div class="daily-embed">
+        <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg></div>
+        <div class="txt">
+          <h4>현재 사용 중인 일일보고 대시보드</h4>
+          <p>기존에 쓰던 일일출근현황 대시보드를 이 메뉴에 그대로 연결합니다 (별도 개편 없음)</p>
+        </div>
+        <button class="go-btn">기존 대시보드 열기</button>
+      </div>
+    </div>
+
+    <div class="content-panel" data-panel="cost" data-scope="app-admin">
+      <div class="main-header"><div><h2>물류비계산</h2></div></div>
+      <div class="placeholder-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg></div>
+        <h3>물류비계산 메뉴는 준비 중입니다</h3>
+        <p>입고·출고·보관비 등 항목별 물류비 산출 기능이 이곳에 들어갈 예정입니다</p>
+        <div class="soon-badge">COMING SOON</div>
+      </div>
+    </div>
+
+    <div class="content-panel" data-panel="recruit" data-scope="app-admin">
+      <div class="main-header"><div><h2>센터 구인현황</h2></div></div>
+      <div class="placeholder-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h3>센터 구인현황 메뉴는 준비 중입니다</h3>
+        <p>채용 AI 시스템과 연동한 지원자·충원 현황이 이곳에 들어갈 예정입니다</p>
+        <div class="soon-badge">COMING SOON</div>
+      </div>
+    </div>
+
+    <div class="content-panel" data-panel="applicants" data-scope="app-admin">
+      <div class="main-header"><div><h2>지원자 알림</h2></div></div>
+      <div class="placeholder-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg></div>
+        <h3>신규 지원자 알림 목록이 표시될 영역입니다</h3>
+        <p>채용 AI 시스템 연동 후 실시간 알림이 여기에 표시됩니다</p>
+      </div>
+    </div>
+
+    <div class="content-panel" data-panel="accounts" data-scope="app-admin">
+      <div class="main-header"><div><h2>센터 계정관리</h2></div></div>
+      <div class="placeholder-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h3>센터별 계정 목록/권한 관리 영역입니다</h3>
+        <p>센터 ID 발급, 비밀번호 초기화, 권한 설정 기능이 들어갈 예정입니다</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showScreen(id, btn){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.mockup-switcher button').forEach(b=>b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+  }
+
+  function switchPanel(ev, panelId){
+    ev.preventDefault();
+    const link = ev.currentTarget;
+    const scopeEl = link.closest('[data-scope]');
+    const scope = scopeEl.getAttribute('data-scope');
+
+    document.querySelectorAll('.sb-nav[data-scope="'+scope+'"] a').forEach(a=>a.classList.remove('active'));
+    link.classList.add('active');
+
+    document.querySelectorAll('.content-panel[data-scope="'+scope+'"]').forEach(p=>p.classList.remove('active'));
+    document.querySelector('.content-panel[data-scope="'+scope+'"][data-panel="'+panelId+'"]').classList.add('active');
+  }
+</script>
+
+</body>
+</html>
