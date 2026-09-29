@@ -27,7 +27,8 @@ db.exec(`
 `);
 
 app.use(cors());               // 대시보드가 다른 도메인(GitHub Pages)에서 호출하므로 CORS 허용
-app.use(express.json({ limit: "5mb" }));
+// 대시보드가 text/plain으로 보내는 경우(CORS preflight 회피)도 JSON으로 파싱되게 처리
+app.use(express.json({ limit: "5mb", type: ["application/json", "text/plain"] }));
 
 // 헬스체크
 app.get("/", (req, res) => {
