@@ -224,7 +224,11 @@
   .quicklink-card .card-head{padding:14px 18px 10px;border-bottom:none;align-items:flex-start;}
   .quicklink-card .card-head .hd-title p{font-size:11px;color:var(--ink-faint);margin:2px 0 0;}
   .quicklink-list{list-style:none;margin:0;padding:6px 10px 14px;display:flex;flex-direction:column;gap:4px;}
-  .quicklink-list li{display:flex;align-items:center;}
+  .quicklink-list li{display:flex;align-items:center;border-radius:8px;}
+  .quicklink-list li.dragging{opacity:.35;background:var(--surface-2);}
+  .quicklink-list li.drag-over{box-shadow:inset 0 2px 0 var(--navy);}
+  .quicklink-list .drag-handle{cursor:grab;color:var(--ink-faint);font-size:13px;letter-spacing:-1px;padding:0 4px;flex-shrink:0;user-select:none;touch-action:none;}
+  .quicklink-list .drag-handle:active{cursor:grabbing;}
   .quicklink-list li a{
     flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:var(--ink);
   }
@@ -805,13 +809,15 @@
       return;
     }
     container.innerHTML = links.map(l => `
-      <li>
+      <li draggable="true" data-id="${l.id}">
+        <span class="drag-handle" title="드래그해서 순서 변경">⠿</span>
         <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">
           <div class="qicon">${escapeHtml((l.name || '?').charAt(0))}</div>
           <div class="qtxt"><div class="name">${escapeHtml(l.name)}</div><div class="desc">${escapeHtml(l.desc || '')}</div></div>
         </a>
         <button class="del-x" title="삭제" onclick="deleteLink(${l.id})">×</button>
       </li>`).join('');
+    setupLinkDrag(container);
   }
   async function loadLinks(){
     const containers = document.querySelectorAll('.quicklink-list');
@@ -823,6 +829,61 @@
     }catch(e){
       containers.forEach(el => { el.innerHTML = '<li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">사이트 목록을 불러오지 못했습니다.</li>'; });
     }
+  }
+  // 자주쓰는 사이트 드래그로 순서 변경
+  function setupLinkDrag(container){
+    if(container.dataset.dragReady === '1') return;
+    container.dataset.dragReady = '1';
+    let draggedEl = null;
+    container.addEventListener('dragstart', e => {
+      const li = e.target.closest('li[draggable="true"]');
+      if(!li) return;
+      draggedEl = li;
+      li.classList.add('dragging');
+      if(e.dataTransfer){
+        e.dataTransfer.effectAllowed = 'move';
+        try{ e.dataTransfer.setData('text/plain', li.dataset.id); }catch(err){}
+      }
+    });
+    container.addEventListener('dragend', () => {
+      if(draggedEl) draggedEl.classList.remove('dragging');
+      draggedEl = null;
+    });
+    container.addEventListener('dragover', e => {
+      if(!draggedEl) return;
+      e.preventDefault();
+      const after = getLinkDragAfterElement(container, e.clientY);
+      if(after == null) container.appendChild(draggedEl);
+      else if(after !== draggedEl) container.insertBefore(draggedEl, after);
+    });
+    container.addEventListener('drop', e => {
+      if(!draggedEl) return;
+      e.preventDefault();
+      const order = Array.from(container.querySelectorAll('li[data-id]')).map(li => +li.dataset.id);
+      saveLinkOrder(order);
+    });
+  }
+  function getLinkDragAfterElement(container, y){
+    const els = Array.from(container.querySelectorAll('li[draggable="true"]:not(.dragging)'));
+    let closest = { offset: -Infinity, element: null };
+    els.forEach(el => {
+      const box = el.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if(offset < 0 && offset > closest.offset){ closest = { offset, element: el }; }
+    });
+    return closest.element;
+  }
+  async function saveLinkOrder(order){
+    try{
+      const res = await fetch(BACKEND_URL + '/links/reorder', {
+        method: 'PUT',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ order })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok) loadLinks(); // 저장 실패 시 서버 기준으로 다시 불러와 원상복구
+      else loadLinks(); // 다른 화면(사용자/관리자)에도 새 순서 반영
+    }catch(e){ loadLinks(); }
   }
   function openLinkModal(){
     document.getElementById('linkName').value = '';
