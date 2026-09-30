@@ -65,9 +65,12 @@ db.exec(`
     name TEXT NOT NULL,
     desc TEXT,
     url TEXT NOT NULL,
+    sortOrder INTEGER,
     createdAt TEXT NOT NULL
   )
 `);
+// 예전 DB(sortOrder 컬럼 없이 만들어진 links 테이블)를 위한 안전한 컬럼 추가 (이미 있으면 무시)
+try { db.exec("ALTER TABLE links ADD COLUMN sortOrder INTEGER"); } catch (e) { /* 이미 존재함 */ }
 // 일일 마감보고 (센터 일일 마감보고 툴 - 기존 대시보드를 대체)
 db.exec(`
   CREATE TABLE IF NOT EXISTS daily_entries (
@@ -120,9 +123,12 @@ const stmt = {
   deletePost: db.prepare("DELETE FROM posts WHERE id = ?"),
 
   countLinks: db.prepare("SELECT COUNT(*) AS c FROM links"),
-  insertLink: db.prepare(`INSERT INTO links (name, desc, url, createdAt) VALUES (?, ?, ?, ?)`),
-  listLinks: db.prepare("SELECT id, name, desc, url, createdAt FROM links ORDER BY id ASC"),
+  insertLink: db.prepare(`INSERT INTO links (name, desc, url, sortOrder, createdAt) VALUES (?, ?, ?, ?, ?)`),
+  listLinks: db.prepare("SELECT id, name, desc, url, sortOrder, createdAt FROM links ORDER BY sortOrder ASC, id ASC"),
   deleteLink: db.prepare("DELETE FROM links WHERE id = ?"),
+  maxLinkOrder: db.prepare("SELECT COALESCE(MAX(sortOrder), 0) AS m FROM links"),
+  updateLinkOrder: db.prepare("UPDATE links SET sortOrder = ? WHERE id = ?"),
+  nullOrderLinks: db.prepare("SELECT id FROM links WHERE sortOrder IS NULL ORDER BY id ASC"),
 
   listDailyEntries: db.prepare("SELECT center, date, json, updatedAt FROM daily_entries ORDER BY date ASC"),
   upsertDailyEntry: db.prepare(`
@@ -193,12 +199,19 @@ function seedBoard() {
       ["채용 관리", "지원자 현황", "https://example.com"],
       ["전자결재", "그룹웨어", "https://example.com"],
     ];
-    samples.forEach(([name, desc, url]) => {
-      stmt.insertLink.run(name, desc, url, now);
+    samples.forEach(([name, desc, url], i) => {
+      stmt.insertLink.run(name, desc, url, i + 1, now);
     });
   }
 }
 seedBoard();
+
+// 예전 데이터(순서값 없음)에 순서를 한 번만 채워줍니다.
+function backfillLinkOrder() {
+  const rows = stmt.nullOrderLinks.all();
+  rows.forEach((r) => stmt.updateLinkOrder.run(r.id, r.id));
+}
+backfillLinkOrder();
 
 app.use(cors());               // 대시보드가 다른 도메인(GitHub Pages)에서 호출하므로 CORS 허용
 // 대시보드가 text/plain으로 보내는 경우(CORS preflight 회피)도 JSON으로 파싱되게 처리
@@ -347,7 +360,18 @@ app.post("/api/links", requireAuth, (req, res) => {
   if (!name || !url) {
     return res.status(400).json({ ok: false, error: "사이트 이름과 URL은 필수입니다." });
   }
-  stmt.insertLink.run(name, desc || "", url, new Date().toISOString());
+  const nextOrder = stmt.maxLinkOrder.get().m + 1;
+  stmt.insertLink.run(name, desc || "", url, nextOrder, new Date().toISOString());
+  res.json({ ok: true });
+});
+
+// 자주쓰는 사이트 순서 변경 (드래그로 재배열한 결과를 id 배열로 받아 순서를 저장)
+app.put("/api/links/reorder", requireAuth, (req, res) => {
+  const { order } = req.body || {};
+  if (!Array.isArray(order) || order.length === 0) {
+    return res.status(400).json({ ok: false, error: "정렬 순서 목록이 필요합니다." });
+  }
+  order.forEach((id, idx) => stmt.updateLinkOrder.run(idx + 1, id));
   res.json({ ok: true });
 });
 
