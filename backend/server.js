@@ -43,9 +43,12 @@ db.exec(`
     name TEXT NOT NULL,
     centerName TEXT,
     role TEXT NOT NULL DEFAULT 'general',
+    centerId TEXT,
     createdAt TEXT NOT NULL
   )
 `);
+// 예전 DB(centerId 컬럼 없이 만들어진 users 테이블)를 위한 안전한 컬럼 추가 (이미 있으면 무시)
+try { db.exec("ALTER TABLE users ADD COLUMN centerId TEXT"); } catch (e) { /* 이미 존재함 */ }
 db.exec(`
   CREATE TABLE IF NOT EXISTS posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -96,12 +99,13 @@ db.exec(`
 const stmt = {
   countUsers: db.prepare("SELECT COUNT(*) AS c FROM users"),
   insertUser: db.prepare(`
-    INSERT INTO users (id, passwordHash, name, centerName, role, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, passwordHash, name, centerName, role, centerId, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `),
   getUserById: db.prepare("SELECT * FROM users WHERE id = ?"),
-  listUsers: db.prepare("SELECT id, name, centerName, role, createdAt FROM users ORDER BY createdAt ASC"),
-  updateUser: db.prepare(`UPDATE users SET passwordHash=?, name=?, centerName=?, role=? WHERE id=?`),
+  listUsers: db.prepare("SELECT id, name, centerName, centerId, role, createdAt FROM users ORDER BY createdAt ASC"),
+  updateUser: db.prepare(`UPDATE users SET passwordHash=?, name=?, centerName=?, role=?, centerId=? WHERE id=?`),
+  updateOwnCenter: db.prepare("UPDATE users SET centerId=? WHERE id=?"),
   deleteUser: db.prepare("DELETE FROM users WHERE id = ?"),
   countAdmins: db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"),
   getStateByDate: db.prepare("SELECT * FROM state WHERE workDateStr = ?"),
@@ -152,7 +156,7 @@ function seedAdmin() {
   const count = stmt.countUsers.get().c;
   if (count === 0) {
     const hash = bcrypt.hashSync("admin1234", 10);
-    stmt.insertUser.run("admin", hash, "관리자", "전체 센터 관리", "admin", new Date().toISOString());
+    stmt.insertUser.run("admin", hash, "관리자", "전체 센터 관리", "admin", null, new Date().toISOString());
     console.log("기본 관리자 계정 생성됨 -> id: admin / password: admin1234 (로그인 후 꼭 변경하세요)");
   }
 }
@@ -169,7 +173,7 @@ function seedFixedAdmins() {
     const exists = stmt.getUserById.get(acc.id);
     if (!exists) {
       const hash = bcrypt.hashSync(acc.password, 10);
-      stmt.insertUser.run(acc.id, hash, acc.name, acc.centerName, "admin", new Date().toISOString());
+      stmt.insertUser.run(acc.id, hash, acc.name, acc.centerName, "admin", null, new Date().toISOString());
       console.log(`고정 관리자 계정 생성됨 -> id: ${acc.id} / password: ${acc.password}`);
     }
   });
@@ -212,6 +216,25 @@ function backfillLinkOrder() {
   rows.forEach((r) => stmt.updateLinkOrder.run(r.id, r.id));
 }
 backfillLinkOrder();
+
+// 일일 마감보고 센터 목록 최초 기본값 (실제 6개 물류센터로 고정) - 이미 설정이 있으면 건드리지 않습니다.
+const DEFAULT_DAILY_CENTERS = [
+  { id: "dongseoul", name: "동서울 물류센터" },
+  { id: "yongin2", name: "용인2 물류센터" },
+  { id: "ansan", name: "안산 물류센터" },
+  { id: "gyeryong", name: "계룡 물류센터" },
+  { id: "honam", name: "호남 물류센터" },
+  { id: "namosan", name: "남오산 물류센터" },
+];
+function seedDailyConfig() {
+  const row = stmt.getDailyConfig.get();
+  if (!row) {
+    const json = JSON.stringify({ centers: DEFAULT_DAILY_CENTERS, targetEnd: 22 * 60 });
+    stmt.upsertDailyConfig.run({ json, updatedAt: new Date().toISOString() });
+    console.log("일일 마감보고 기본 센터 목록 생성됨 (동서울/용인2/안산/계룡/호남/남오산)");
+  }
+}
+seedDailyConfig();
 
 app.use(cors());               // 대시보드가 다른 도메인(GitHub Pages)에서 호출하므로 CORS 허용
 // 대시보드가 text/plain으로 보내는 경우(CORS preflight 회피)도 JSON으로 파싱되게 처리
@@ -261,7 +284,7 @@ app.get("/api/users", requireAuth, requireAdmin, (req, res) => {
 });
 
 app.post("/api/users", requireAuth, requireAdmin, (req, res) => {
-  const { id, password, name, centerName, role } = req.body || {};
+  const { id, password, name, centerName, role, centerId } = req.body || {};
   if (!id || !password || !name) {
     return res.status(400).json({ ok: false, error: "센터 ID, 이름, 비밀번호는 필수입니다." });
   }
@@ -270,7 +293,7 @@ app.post("/api/users", requireAuth, requireAdmin, (req, res) => {
     return res.status(409).json({ ok: false, error: "이미 존재하는 센터 ID입니다." });
   }
   const hash = bcrypt.hashSync(password, 10);
-  stmt.insertUser.run(id, hash, name, centerName || "", role === "admin" ? "admin" : "general", new Date().toISOString());
+  stmt.insertUser.run(id, hash, name, centerName || "", role === "admin" ? "admin" : "general", centerId || null, new Date().toISOString());
   res.json({ ok: true });
 });
 
@@ -279,13 +302,14 @@ app.put("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
   const existing = stmt.getUserById.get(targetId);
   if (!existing) return res.status(404).json({ ok: false, error: "계정을 찾을 수 없습니다." });
 
-  const { password, name, centerName, role } = req.body || {};
+  const { password, name, centerName, role, centerId } = req.body || {};
   const newName = name || existing.name;
   const newCenter = centerName != null ? centerName : existing.centerName;
   const newRole = role === "admin" ? "admin" : "general";
+  const newCenterId = centerId !== undefined ? (centerId || null) : existing.centerId;
   const newHash = password ? bcrypt.hashSync(password, 10) : existing.passwordHash;
 
-  stmt.updateUser.run(newHash, newName, newCenter, newRole, targetId);
+  stmt.updateUser.run(newHash, newName, newCenter, newRole, newCenterId, targetId);
   res.json({ ok: true });
 });
 
@@ -298,6 +322,23 @@ app.delete("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
     return res.status(400).json({ ok: false, error: "마지막 관리자 계정은 삭제할 수 없습니다." });
   }
   stmt.deleteUser.run(targetId);
+  res.json({ ok: true });
+});
+
+// 내 계정 정보 (일일보고 - 로그인한 사람이 자기 담당 센터를 고르고, 다음 로그인부터 기억하기 위함)
+app.get("/api/users/me", requireAuth, (req, res) => {
+  const user = stmt.getUserById.get(req.user.id);
+  if (!user) return res.status(404).json({ ok: false, error: "계정을 찾을 수 없습니다." });
+  res.json({ id: user.id, name: user.name, centerName: user.centerName, centerId: user.centerId || null, role: user.role });
+});
+
+// 내 담당 센터 지정/변경 (일반 계정이 일일보고 첫 로그인 시 직접 선택)
+app.put("/api/users/me/center", requireAuth, (req, res) => {
+  const { centerId } = req.body || {};
+  if (!centerId || typeof centerId !== "string") {
+    return res.status(400).json({ ok: false, error: "센터를 선택하세요." });
+  }
+  stmt.updateOwnCenter.run(centerId, req.user.id);
   res.json({ ok: true });
 });
 
