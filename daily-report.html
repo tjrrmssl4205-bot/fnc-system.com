@@ -6,6 +6,7 @@
 <title>센터 일일 마감보고</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --bg:#f3f5f7; --surface:#ffffff; --surface2:#f8fafb; --ink:#0f1a24; --ink2:#4a5763; --muted:#7a8591;
@@ -33,6 +34,10 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.5;padding:0 16px 48px}
+body.is-embedded{padding:0 4px 24px}
+body.is-embedded header.top{padding-block:10px 8px}
+body.is-embedded .brand h1{font-size:17px}
+body.is-embedded .brand p{display:none}
 .wrap{max-width:1240px;margin:0 auto}
 .num{font-variant-numeric:tabular-nums}
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-block:22px 14px;border-bottom:1px solid var(--line)}
@@ -137,13 +142,20 @@ legend.fl .tag{font-weight:600;font-size:11px;border-radius:4px;padding:1px 6px;
 @media (max-width:860px){.grid,.entry,.settings{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hc{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .v{font-size:22px}}
 @media (prefers-reduced-motion:no-preference){.btn,nav.tabs button{transition:background .12s}}
+.export-header{display:none}
+.export-header.show{display:block;padding:2px 2px 14px;font-weight:700;font-size:15px;color:var(--ink)}
+.export-header .sub2{font-weight:500;font-size:12px;color:var(--ink2);margin-top:2px}
+#my-center-badge{color:var(--ink2);font-weight:600}
+body.role-general #f-center{pointer-events:none;opacity:.7}
+body.role-general #admin-settings-section{display:none}
+body.role-general #csv-import-wrap{display:none}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <a href="index.html" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ink2);text-decoration:none;margin-bottom:4px">← 메인으로</a>
+      <a href="index.html" id="backToMain" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ink2);text-decoration:none;margin-bottom:4px">← 메인으로</a>
       <h1>센터 일일 마감보고</h1>
       <p>출근 인원 · 마감 피킹 건수 · 피킹 종료시간을 매일 쌓아 월 단위로 환산합니다</p>
     </div>
@@ -157,6 +169,9 @@ legend.fl .tag{font-weight:600;font-size:11px;border-radius:4px;padding:1px 6px;
   <div class="bar" id="filterbar">
     <label>월 <select id="f-month"></select></label>
     <label>센터 <select id="f-center"></select></label>
+    <button class="btn sm" id="btn-export-img" type="button" title="대시보드 화면을 그래프만 보이는 이미지로 저장합니다">이미지로 저장</button>
+    <span class="hint" id="my-center-badge" style="min-height:auto"></span>
+    <button class="btn sm" id="btn-change-center" type="button" hidden>담당 센터 변경</button>
     <span class="spacer"></span>
     <span class="status" id="status"><span class="dot"></span>연결 확인 중</span>
   </div>
@@ -253,31 +268,47 @@ legend.fl .tag{font-weight:600;font-size:11px;border-radius:4px;padding:1px 6px;
     <div class="io">
       <button class="btn" id="x-month">선택 월 CSV 내보내기</button>
       <button class="btn" id="x-all">전체 CSV 내보내기</button>
-      <label class="btn" for="imp" style="display:inline-block">CSV 가져오기</label>
-      <input type="file" id="imp" accept=".csv,text/csv" hidden>
+      <span id="csv-import-wrap">
+        <label class="btn" for="imp" style="display:inline-block">CSV 가져오기</label>
+        <input type="file" id="imp" accept=".csv,text/csv" hidden>
+      </span>
       <span class="msg" id="io-msg" role="status"></span>
     </div>
-    <p class="help">기존 엑셀 기록은 CSV로 저장해 한 번에 올릴 수 있습니다. 첫 줄 머리글: <code>날짜,센터,FNC_재고,FNC_야간하역,협력_재고,협력_야간,협력_기타,피킹건수,피킹종료,특이사항</code>. 날짜는 <code>2026-09-01</code>, 피킹종료는 <code>23:40</code> 형식이며, 없는 센터 이름은 자동으로 추가됩니다. 같은 날짜·센터 보고는 덮어씁니다.</p>
+    <p class="help" id="csv-help-text">기존 엑셀 기록은 CSV로 저장해 한 번에 올릴 수 있습니다. 첫 줄 머리글: <code>날짜,센터,FNC_재고,FNC_야간하역,협력_재고,협력_야간,협력_기타,피킹건수,피킹종료,특이사항</code>. 날짜는 <code>2026-09-01</code>, 피킹종료는 <code>23:40</code> 형식이며, 없는 센터 이름은 자동으로 추가됩니다. 같은 날짜·센터 보고는 덮어씁니다.</p>
     <p class="help"><b>저장 안내:</b> 입력한 데이터는 서버에 저장되어 로그인한 모든 담당자가 같은 데이터를 함께 보고 입력할 수 있습니다. 그래도 주 1회 정도 <b>전체 CSV 내보내기</b>로 백업해 두시길 권장하며, 본사 취합 시에는 센터별 CSV를 한 파일에서 차례로 가져오면 전체 센터 대시보드가 만들어집니다.</p>
 
-    <h2 class="sec">설정</h2>
-    <div class="settings">
-      <div class="card">
-        <h3>센터 목록</h3>
-        <div class="sub">이름을 바꿔도 기존 데이터는 그대로 연결됩니다</div>
-        <div class="clist" id="clist"></div>
-        <div class="actions"><button class="btn sm" id="c-add" type="button">센터 추가</button></div>
-      </div>
-      <div class="card">
-        <h3>피킹 종료 목표 시각</h3>
-        <div class="sub">대시보드의 기준선과 목표 초과일 집계에 쓰입니다</div>
-        <label class="f" style="max-width:200px"><span>목표 시각</span><input type="time" id="s-target"></label>
-        <div class="actions"><button class="btn primary" id="s-save" type="button">설정 저장</button><span class="msg" id="s-msg" role="status"></span></div>
+    <div id="admin-settings-section">
+      <h2 class="sec">설정</h2>
+      <div class="settings">
+        <div class="card">
+          <h3>센터 목록</h3>
+          <div class="sub">이름을 바꿔도 기존 데이터는 그대로 연결됩니다</div>
+          <div class="clist" id="clist"></div>
+          <div class="actions"><button class="btn sm" id="c-add" type="button">센터 추가</button></div>
+        </div>
+        <div class="card">
+          <h3>피킹 종료 목표 시각</h3>
+          <div class="sub">대시보드의 기준선과 목표 초과일 집계에 쓰입니다</div>
+          <label class="f" style="max-width:200px"><span>목표 시각</span><input type="time" id="s-target"></label>
+          <div class="actions"><button class="btn primary" id="s-save" type="button">설정 저장</button><span class="msg" id="s-msg" role="status"></span></div>
+        </div>
       </div>
     </div>
   </section>
 </div>
 <div id="tip" hidden></div>
+
+<div id="centerPickModal" hidden style="position:fixed;inset:0;z-index:80;background:rgba(10,15,20,.55);display:flex;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border-radius:12px;padding:22px 24px;max-width:360px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25);">
+    <h3 style="margin:0 0 6px;font-size:16px;">담당 센터 선택</h3>
+    <p style="margin:0 0 14px;font-size:13px;color:var(--ink2);">이 계정으로 보고할 센터를 선택하세요. 선택한 센터의 데이터만 보이고 입력됩니다. 나중에 언제든 바꿀 수 있습니다.</p>
+    <select id="cp-select" style="width:100%;margin-bottom:14px;"></select>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" id="cp-cancel" type="button" hidden>취소</button>
+      <button class="btn primary" id="cp-save" type="button">확인</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -312,6 +343,7 @@ const TODAY = new Date();
 const DEFAULT_CONFIG = { centers:[{id:'c1',name:'A센터'},{id:'c2',name:'B센터'},{id:'c3',name:'C센터'}], targetEnd: 22*60 };
 
 let db = null, dl = null;
+let me = null;              // { id, name, role, centerId } - 로그인한 계정 정보 (센터별 접근 제한용)
 let live = false;
 let months = {};           // live docs: id -> {center, month, days}
 let config = structuredClone(DEFAULT_CONFIG);
@@ -403,19 +435,24 @@ async function boot(){
   let ok = true;
   try {
     if (!localStorage.getItem('fnc_token')) { goLogin(); return; }
-    const [cfgRes, entRes] = await Promise.all([
+    const [cfgRes, entRes, meRes] = await Promise.all([
       fetch(BACKEND_URL + '/daily/config', { headers: authHeaders() }),
       fetch(BACKEND_URL + '/daily/entries', { headers: authHeaders() }),
+      fetch(BACKEND_URL + '/users/me', { headers: authHeaders() }),
     ]);
-    if (cfgRes.status === 401 || entRes.status === 401) { goLogin(); return; }
+    if (cfgRes.status === 401 || entRes.status === 401 || meRes.status === 401) { goLogin(); return; }
     const cfgData = await cfgRes.json();
     const entData = await entRes.json();
     if (cfgData && cfgData.centers && cfgData.centers.length) config = cfgData;
     months = buildMonthsFromEntries(entData);
+    if (meRes.ok) me = await meRes.json();
   } catch(e) { ok = false; }
   db = ok ? true : null;
   setStatus(ok);
+  applyRoleLock();
   renderAll();
+  // 일반 계정인데 담당 센터가 아직 없으면, 먼저 고르게 합니다.
+  if (me && me.role !== 'admin' && !me.centerId) openCenterPicker(true);
 }
 function setStatus(ok){
   live = ok;
@@ -424,17 +461,29 @@ function setStatus(ok){
 }
 
 /* ---------- filters & tabs ---------- */
+const isLocked = () => !!(me && me.role !== 'admin' && me.centerId);
 function renderFilters(){
   const ms = new Set(Object.values(src()).map(d => d.month)); ms.add(ymOf(TODAY));
   const list = [...ms].sort().reverse();
   if (!list.includes(view.month)) view.month = list[0];
   $('#f-month').innerHTML = list.map(m => `<option value="${m}" ${m===view.month?'selected':''}>${m.replace('-','년 ')}월</option>`).join('');
-  const opts = `<option value="all">전체 센터</option>` + config.centers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  if (view.center!=='all' && !config.centers.some(c=>c.id===view.center)) view.center='all';
-  $('#f-center').innerHTML = opts; $('#f-center').value = view.center;
+  if (isLocked()) {
+    // 일반 계정: 내 담당 센터로 고정 (다른 센터는 목록에도 안 보임)
+    view.center = me.centerId;
+    $('#f-center').innerHTML = `<option value="${me.centerId}">${esc(centerName(me.centerId))}</option>`;
+    $('#f-center').value = me.centerId;
+    $('#f-center').disabled = true;
+  } else {
+    const opts = `<option value="all">전체 센터</option>` + config.centers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    if (view.center!=='all' && !config.centers.some(c=>c.id===view.center)) view.center='all';
+    $('#f-center').disabled = false;
+    $('#f-center').innerHTML = opts; $('#f-center').value = view.center;
+  }
   const ec = $('#e-center'), cur = ec.value;
-  ec.innerHTML = config.centers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  ec.value = config.centers.some(c=>c.id===cur) ? cur : (view.center!=='all'?view.center:config.centers[0]?.id);
+  const centersForEntry = isLocked() ? config.centers.filter(c => c.id === me.centerId) : config.centers;
+  ec.innerHTML = centersForEntry.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  ec.value = centersForEntry.some(c=>c.id===cur) ? cur : (isLocked() ? me.centerId : (view.center!=='all'?view.center:config.centers[0]?.id));
+  ec.disabled = isLocked() && centersForEntry.length <= 1;
 }
 $('#f-month').onchange = e => { view.month = e.target.value; renderAll(); };
 $('#f-center').onchange = e => { view.center = e.target.value; renderAll(); };
@@ -850,6 +899,95 @@ $('#s-save').onclick = async () => {
 /* resize */
 let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { if (view.tab==='dash') renderDash(); }, 120); }).observe($('.wrap'));
 if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => view.tab==='dash' && renderDash());
+
+// 메인 화면(index.html) 좌측 상단 "관리 센터 선택"에서 보낸 메시지를 받아 센터를 전환합니다.
+// (일반 계정은 자기 센터로 잠겨 있으므로 무시합니다.)
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'fnc-set-center') return;
+  if (isLocked()) return;
+  view.center = e.data.centerId || 'all';
+  view.tab = 'dash';
+  renderTabs();
+  renderAll();
+});
+
+/* ---------- 계정별 담당 센터 (일반 계정은 자기 센터만 보고 입력) ---------- */
+function applyRoleLock(){
+  const generalLocked = !!(me && me.role !== 'admin');
+  document.body.classList.toggle('role-general', generalLocked);
+  const badge = $('#my-center-badge'), changeBtn = $('#btn-change-center');
+  if (generalLocked) {
+    badge.textContent = me.centerId ? ('담당 센터: ' + centerName(me.centerId)) : '담당 센터 미지정';
+    changeBtn.hidden = false;
+  } else {
+    badge.textContent = '';
+    changeBtn.hidden = true;
+  }
+}
+function openCenterPicker(forceChoice){
+  const sel = $('#cp-select');
+  sel.innerHTML = config.centers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if (me && me.centerId && config.centers.some(c=>c.id===me.centerId)) sel.value = me.centerId;
+  $('#cp-cancel').hidden = !!forceChoice;
+  $('#centerPickModal').hidden = false;
+}
+function closeCenterPicker(){ $('#centerPickModal').hidden = true; }
+$('#cp-cancel').onclick = closeCenterPicker;
+$('#btn-change-center').onclick = () => openCenterPicker(false);
+$('#cp-save').onclick = async () => {
+  const centerId = $('#cp-select').value;
+  if (!centerId) return;
+  const btn = $('#cp-save'); btn.disabled = true; btn.textContent = '저장 중…';
+  try {
+    const res = await fetch(BACKEND_URL + '/users/me/center', { method:'PUT', headers: authHeaders(true), body: JSON.stringify({ centerId }) });
+    if (res.status === 401) { goLogin(); return; }
+    if (!res.ok) { alert('저장하지 못했습니다. 다시 시도해주세요.'); return; }
+    if (!me) me = {};
+    me.centerId = centerId;
+    closeCenterPicker();
+    applyRoleLock();
+    loadedKey = null;
+    renderAll();
+  } catch(e) { alert('서버에 연결할 수 없습니다.'); }
+  finally { btn.disabled = false; btn.textContent = '확인'; }
+};
+
+/* ---------- 대시보드 이미지로 저장 (탭/필터 버튼 없이 그래프만) ---------- */
+$('#btn-export-img').onclick = async () => {
+  const btn = $('#btn-export-img');
+  if (typeof html2canvas === 'undefined') { alert('이미지 저장 기능을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침 해주세요.'); return; }
+  const target = $('#p-dash');
+  const header = document.createElement('div');
+  header.className = 'export-header show';
+  const centerLabel = view.center === 'all' ? '전체 센터' : centerName(view.center);
+  header.innerHTML = `${centerLabel} · ${view.month.replace('-', '년 ')}월 센터 일일 마감보고<div class="sub2">생성: ${new Date().toLocaleString('ko-KR')}</div>`;
+  target.insertBefore(header, target.firstChild);
+  btn.disabled = true; btn.textContent = '이미지 생성 중…';
+  try {
+    const canvas = await html2canvas(target, {
+      backgroundColor: cssv('--bg') || '#f3f5f7',
+      scale: 2,
+      useCORS: true,
+    });
+    const a = document.createElement('a');
+    a.download = `일일보고_${centerLabel}_${view.month}.png`;
+    a.href = canvas.toDataURL('image/png');
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) {
+    alert('이미지를 만들지 못했습니다.');
+  } finally {
+    header.remove();
+    btn.disabled = false; btn.textContent = '이미지로 저장';
+  }
+};
+
+// index.html 안(iframe)에 끼워 넣을 때는 ?embedded=1 로 열어 헤더를 살짝 줄이고
+// "메인으로" 링크(중복)를 숨깁니다.
+if (new URLSearchParams(location.search).get('embedded') === '1') {
+  document.body.classList.add('is-embedded');
+  const back = document.getElementById('backToMain');
+  if (back) back.style.display = 'none';
+}
 
 boot();
 })();
