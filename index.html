@@ -445,10 +445,14 @@
 
     <div class="center-select">
       <div class="k">관리 센터 선택</div>
-      <select>
-        <option>동서울 물류센터</option>
-        <option>원주 물류센터</option>
-        <option>전체 센터 보기</option>
+      <select id="adminCenterSelect">
+        <option value="all">전체 센터 보기</option>
+        <option value="dongseoul">동서울 물류센터</option>
+        <option value="yongin2">용인2 물류센터</option>
+        <option value="ansan">안산 물류센터</option>
+        <option value="gyeryong">계룡 물류센터</option>
+        <option value="honam">호남 물류센터</option>
+        <option value="namosan">남오산 물류센터</option>
       </select>
     </div>
 
@@ -571,6 +575,17 @@
         <div class="field"><label>권한</label>
           <select id="accRole"><option value="general">일반</option><option value="admin">관리자</option></select>
         </div>
+        <div class="field"><label>담당 센터 (일일보고)</label>
+          <select id="accDailyCenter">
+            <option value="">미지정 (본인이 일일보고에서 직접 선택)</option>
+            <option value="dongseoul">동서울 물류센터</option>
+            <option value="yongin2">용인2 물류센터</option>
+            <option value="ansan">안산 물류센터</option>
+            <option value="gyeryong">계룡 물류센터</option>
+            <option value="honam">호남 물류센터</option>
+            <option value="namosan">남오산 물류센터</option>
+          </select>
+        </div>
         <div class="field"><label>비밀번호 <span id="accPwHint" style="font-weight:400;"></span></label>
           <input type="password" id="accPw" placeholder="새 계정: 필수 / 수정 시: 변경할 때만 입력" />
         </div>
@@ -581,8 +596,8 @@
         </div>
       </div>
       <table class="acc-table">
-        <thead><tr><th>센터 ID</th><th>이름</th><th>소속/센터명</th><th>권한</th><th></th></tr></thead>
-        <tbody id="accTbody"><tr><td colspan="5">불러오는 중...</td></tr></tbody>
+        <thead><tr><th>센터 ID</th><th>이름</th><th>소속/센터명</th><th>권한</th><th>일일보고 담당센터</th><th></th></tr></thead>
+        <tbody id="accTbody"><tr><td colspan="6">불러오는 중...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -662,6 +677,24 @@
       if (f && !f.getAttribute('src')) f.setAttribute('src', f.dataset.src);
     });
   }
+  // 관리자 사이드바 상단 "관리 센터 선택" -> 일일보고현황 화면으로 이동 + 해당 센터로 전환
+  function goToAdminDailyPanel(){
+    const scope = 'app-admin';
+    document.querySelectorAll('.sb-nav[data-scope="'+scope+'"] a').forEach(a=>a.classList.remove('active'));
+    const link = document.querySelector('.sb-nav[data-scope="'+scope+'"] a[onclick*="\'daily\'"]');
+    if(link) link.classList.add('active');
+    document.querySelectorAll('.content-panel[data-scope="'+scope+'"]').forEach(p=>p.classList.remove('active'));
+    const panel = document.querySelector('.content-panel[data-scope="'+scope+'"][data-panel="daily"]');
+    if(panel) panel.classList.add('active');
+  }
+  document.getElementById('adminCenterSelect')?.addEventListener('change', e => {
+    const centerId = e.target.value;
+    const frame = document.getElementById('dailyEmbedFrame-app-admin');
+    if(frame && frame.contentWindow){
+      frame.contentWindow.postMessage({ type: 'fnc-set-center', centerId }, '*');
+    }
+    goToAdminDailyPanel();
+  });
 
   // ---------- 게시판 ----------
   function formatDate(iso){
@@ -990,16 +1023,32 @@
   }
 
   // 계정관리 (관리자 전용)
+  let dailyCenterNameMap = null; // { c1: '동서울', ... } - 일일보고 센터 id -> 이름 (캐시)
+  async function getDailyCenterNameMap(){
+    if(dailyCenterNameMap) return dailyCenterNameMap;
+    dailyCenterNameMap = {};
+    try{
+      const res = await fetch(BACKEND_URL + '/daily/config', { headers: authHeaders() });
+      if(res.ok){
+        const cfg = await res.json();
+        (cfg && cfg.centers || []).forEach(c => { dailyCenterNameMap[c.id] = c.name; });
+      }
+    }catch(e){ /* 무시: 담당센터 표시만 비워둠 */ }
+    return dailyCenterNameMap;
+  }
   async function loadUsers(){
     const tbody = document.getElementById('accTbody');
     if(!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5">불러오는 중...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">불러오는 중...</td></tr>';
     try{
-      const res = await fetch(BACKEND_URL + '/users', { headers: authHeaders() });
+      const [res, centerMap] = await Promise.all([
+        fetch(BACKEND_URL + '/users', { headers: authHeaders() }),
+        getDailyCenterNameMap()
+      ]);
       if(res.status === 401 || res.status === 403){ doLogout(); return; }
       const list = await res.json();
       if(!Array.isArray(list) || list.length === 0){
-        tbody.innerHTML = '<tr><td colspan="5">등록된 계정이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">등록된 계정이 없습니다.</td></tr>';
         return;
       }
       tbody.innerHTML = list.map(u => `
@@ -1008,13 +1057,14 @@
           <td>${escapeHtml(u.name)}</td>
           <td>${escapeHtml(u.centerName)}</td>
           <td>${u.role === 'admin' ? '관리자' : '일반'}</td>
+          <td>${u.role === 'admin' ? '전체' : escapeHtml(u.centerId ? (centerMap[u.centerId] || u.centerId) : '미지정 (본인이 일일보고에서 선택)')}</td>
           <td class="acc-row-actions">
             <button onclick="editAccount('${u.id}')">수정</button>
             <button onclick="deleteAccount('${u.id}')">삭제</button>
           </td>
         </tr>`).join('');
     }catch(e){
-      tbody.innerHTML = '<tr><td colspan="5">목록을 불러오지 못했습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">목록을 불러오지 못했습니다.</td></tr>';
     }
   }
 
@@ -1025,6 +1075,7 @@
     document.getElementById('accName').value = '';
     document.getElementById('accCenter').value = '';
     document.getElementById('accRole').value = 'general';
+    document.getElementById('accDailyCenter').value = '';
     document.getElementById('accPw').value = '';
     document.getElementById('accPwHint').textContent = '(필수)';
     document.getElementById('accErr').style.display = 'none';
@@ -1047,6 +1098,7 @@
       document.getElementById('accName').value = u.name || '';
       document.getElementById('accCenter').value = u.centerName || '';
       document.getElementById('accRole').value = u.role || 'general';
+      document.getElementById('accDailyCenter').value = u.centerId || '';
       document.getElementById('accPw').value = '';
       document.getElementById('accPwHint').textContent = '(변경 시에만 입력)';
       document.getElementById('accErr').style.display = 'none';
@@ -1060,6 +1112,7 @@
     const name = document.getElementById('accName').value.trim();
     const centerName = document.getElementById('accCenter').value.trim();
     const role = document.getElementById('accRole').value;
+    const centerId = document.getElementById('accDailyCenter').value;
     const password = document.getElementById('accPw').value;
     const errEl = document.getElementById('accErr');
     errEl.style.display = 'none';
@@ -1073,7 +1126,7 @@
       errEl.style.display = 'block';
       return;
     }
-    const body = { id, name, centerName, role };
+    const body = { id, name, centerName, role, centerId: centerId || null };
     if(password) body.password = password;
     try{
       const res = await fetch(BACKEND_URL + '/users' + (editId ? ('/' + encodeURIComponent(editId)) : ''), {
