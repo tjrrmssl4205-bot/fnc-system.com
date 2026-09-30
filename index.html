@@ -115,6 +115,17 @@
   .acc-row-actions button{border:1px solid var(--border);background:var(--surface-2);color:var(--ink-soft);border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
   .acc-row-actions button:hover{background:var(--surface);color:var(--ink);}
 
+  /* ============ 게시판 글쓰기 / 사이트 추가 공용 모달 ============ */
+  .modal-overlay{position:fixed;inset:0;background:rgba(10,14,22,0.55);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-box{background:var(--surface);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,0.35);padding:26px 26px 22px;width:100%;max-width:360px;}
+  .modal-box h3{margin:0 0 16px;font-family:'Oswald',sans-serif;font-weight:600;font-size:17px;color:var(--ink);}
+  .modal-box .field select{
+    width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:9px;
+    font-family:'Inter',sans-serif;font-size:13.5px;color:var(--ink);background:var(--surface-2);
+  }
+  .del-x{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:14px;margin-left:8px;padding:0 2px;line-height:1;}
+  .del-x:hover{color:var(--bad);}
+
   /* ============ 화면 2/3: 로그인 후 (사이드바 레이아웃) ============ */
   #app.active, #app-admin.active{min-height:100vh;display:flex;}
 
@@ -350,24 +361,12 @@
       </div>
       <div class="board-layout">
         <div class="board-card">
-          <div class="card-head"><h3>전체 게시글</h3><button class="new-btn">+ 새 글쓰기</button></div>
-          <ul class="board-list">
-            <li><span class="pin">공지</span><span class="ttl">9월 정기 안전점검 일정 안내</span><span class="meta">09-22</span></li>
-            <li><span class="cat">서식</span><span class="ttl">근태 매트릭스 최신 양식 업로드</span><span class="meta">09-20</span></li>
-            <li><span class="cat">공유</span><span class="ttl">추석 연휴 물류 일정 조정 건</span><span class="meta">09-18</span></li>
-            <li><span class="cat">서식</span><span class="ttl">사고경위서 작성 양식(개정판)</span><span class="meta">09-15</span></li>
-            <li><span class="cat">공유</span><span class="ttl">아워홈 WMS 점검 안내(9/25 새벽)</span><span class="meta">09-12</span></li>
-          </ul>
+          <div class="card-head"><h3>전체 게시글</h3><button class="new-btn" onclick="openPostModal()">+ 새 글쓰기</button></div>
+          <ul class="board-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
         <div class="board-card quicklink-card">
           <div class="card-head"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div>
-          <ul class="quicklink-list">
-            <li><a href="#"><div class="qicon">W</div><div class="qtxt"><div class="name">아워홈 WMS</div><div class="desc">물류관리시스템</div></div></a></li>
-            <li><a href="#"><div class="qicon">Q</div><div class="qtxt"><div class="name">QR 출퇴근 시스템</div><div class="desc">직원 출근체크</div></div></a></li>
-            <li><a href="#"><div class="qicon">채</div><div class="qtxt"><div class="name">채용 관리</div><div class="desc">지원자 현황</div></div></a></li>
-            <li><a href="#"><div class="qicon">전</div><div class="qtxt"><div class="name">전자결재</div><div class="desc">그룹웨어</div></div></a></li>
-            <li><a href="#"><div class="qicon">+</div><div class="qtxt"><div class="name">사이트 추가</div><div class="desc">즐겨찾기 등록</div></div></a></li>
-          </ul>
+          <ul class="quicklink-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
       </div>
     </div>
@@ -513,20 +512,12 @@
       </div>
       <div class="board-layout">
         <div class="board-card">
-          <div class="card-head"><h3>전체 게시글</h3><button class="new-btn">+ 새 글쓰기</button></div>
-          <ul class="board-list">
-            <li><span class="pin">공지</span><span class="ttl">9월 정기 안전점검 일정 안내</span><span class="meta">09-22</span></li>
-            <li><span class="cat">서식</span><span class="ttl">근태 매트릭스 최신 양식 업로드</span><span class="meta">09-20</span></li>
-            <li><span class="cat">공유</span><span class="ttl">추석 연휴 물류 일정 조정 건</span><span class="meta">09-18</span></li>
-          </ul>
+          <div class="card-head"><h3>전체 게시글</h3><button class="new-btn" onclick="openPostModal()">+ 새 글쓰기</button></div>
+          <ul class="board-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
         <div class="board-card quicklink-card">
           <div class="card-head"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div>
-          <ul class="quicklink-list">
-            <li><a href="#"><div class="qicon">W</div><div class="qtxt"><div class="name">아워홈 WMS</div><div class="desc">물류관리시스템</div></div></a></li>
-            <li><a href="#"><div class="qicon">Q</div><div class="qtxt"><div class="name">QR 출퇴근 시스템</div><div class="desc">직원 출근체크</div></div></a></li>
-            <li><a href="#"><div class="qicon">전</div><div class="qtxt"><div class="name">전자결재</div><div class="desc">그룹웨어</div></div></a></li>
-          </ul>
+          <ul class="quicklink-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
       </div>
     </div>
@@ -611,6 +602,42 @@
   </div>
 </div>
 
+<!-- 공용 모달: 새 글쓰기 -->
+<div id="postModalOverlay" class="modal-overlay">
+  <div class="modal-box">
+    <h3>새 글쓰기</h3>
+    <div class="field"><label>분류</label>
+      <select id="postCategory">
+        <option value="공지">공지</option>
+        <option value="서식">서식</option>
+        <option value="공유">공유</option>
+        <option value="기타">기타</option>
+      </select>
+    </div>
+    <div class="field"><label>제목</label><input type="text" id="postTitle" placeholder="게시글 제목" /></div>
+    <div id="postErr" class="login-err" style="display:none;"></div>
+    <div class="acc-form-actions">
+      <button class="acc-save-btn" onclick="savePost()">등록</button>
+      <button class="acc-cancel-btn" onclick="closePostModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공용 모달: 사이트 추가 -->
+<div id="linkModalOverlay" class="modal-overlay">
+  <div class="modal-box">
+    <h3>자주쓰는 사이트 추가</h3>
+    <div class="field"><label>사이트 이름</label><input type="text" id="linkName" placeholder="예: 아워홈 WMS" /></div>
+    <div class="field"><label>설명</label><input type="text" id="linkDesc" placeholder="예: 물류관리시스템" /></div>
+    <div class="field"><label>URL</label><input type="text" id="linkUrl" placeholder="https://..." /></div>
+    <div id="linkErr" class="login-err" style="display:none;"></div>
+    <div class="acc-form-actions">
+      <button class="acc-save-btn" onclick="saveLink()">등록</button>
+      <button class="acc-cancel-btn" onclick="closeLinkModal()">취소</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const BACKEND_URL = "https://fnc-system-com.onrender.com/api";
 
@@ -630,7 +657,152 @@
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById(role === 'admin' ? 'app-admin' : 'app').classList.add('active');
     setUserUI(name || '사용자', centerName || (role==='admin' ? '전체 센터 관리 권한' : '일반'));
+    loadPosts();
+    loadLinks();
     if(role === 'admin') loadUsers();
+  }
+
+  // ---------- 게시판 ----------
+  function formatDate(iso){
+    return iso ? iso.slice(5,10) : '';
+  }
+  function renderPostsInto(container, posts){
+    const myId = localStorage.getItem('fnc_id');
+    const myRole = localStorage.getItem('fnc_role');
+    if(!posts || posts.length === 0){
+      container.innerHTML = '<li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">등록된 게시글이 없습니다.</li>';
+      return;
+    }
+    container.innerHTML = posts.map(p => {
+      const catClass = p.category === '공지' ? 'pin' : 'cat';
+      const canDelete = myRole === 'admin' || p.authorId === myId;
+      const delBtn = canDelete ? `<button class="del-x" title="삭제" onclick="deletePost(${p.id})">×</button>` : '';
+      return `<li><span class="${catClass}">${escapeHtml(p.category || '공유')}</span><span class="ttl">${escapeHtml(p.title)}</span><span class="meta">${formatDate(p.createdAt)}${delBtn}</span></li>`;
+    }).join('');
+  }
+  async function loadPosts(){
+    const containers = document.querySelectorAll('.board-list');
+    try{
+      const res = await fetch(BACKEND_URL + '/posts', { headers: authHeaders() });
+      if(res.status === 401){ doLogout(); return; }
+      const posts = await res.json();
+      containers.forEach(el => renderPostsInto(el, posts));
+    }catch(e){
+      containers.forEach(el => { el.innerHTML = '<li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">게시글을 불러오지 못했습니다.</li>'; });
+    }
+  }
+  function openPostModal(){
+    document.getElementById('postCategory').value = '공지';
+    document.getElementById('postTitle').value = '';
+    document.getElementById('postErr').style.display = 'none';
+    document.getElementById('postModalOverlay').style.display = 'flex';
+  }
+  function closePostModal(){
+    document.getElementById('postModalOverlay').style.display = 'none';
+  }
+  async function savePost(){
+    const category = document.getElementById('postCategory').value;
+    const title = document.getElementById('postTitle').value.trim();
+    const errEl = document.getElementById('postErr');
+    errEl.style.display = 'none';
+    if(!title){
+      errEl.textContent = '제목을 입력하세요.';
+      errEl.style.display = 'block';
+      return;
+    }
+    try{
+      const res = await fetch(BACKEND_URL + '/posts', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ category, title })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){
+        errEl.textContent = data.error || '등록에 실패했습니다.';
+        errEl.style.display = 'block';
+        return;
+      }
+      closePostModal();
+      loadPosts();
+    }catch(e){
+      errEl.textContent = '서버에 연결할 수 없습니다.';
+      errEl.style.display = 'block';
+    }
+  }
+  async function deletePost(id){
+    if(!confirm('이 게시글을 삭제하시겠습니까?')) return;
+    try{
+      const res = await fetch(BACKEND_URL + '/posts/' + id, { method: 'DELETE', headers: authHeaders() });
+      const data = await res.json();
+      if(!res.ok || !data.ok){ alert(data.error || '삭제에 실패했습니다.'); return; }
+      loadPosts();
+    }catch(e){ alert('서버에 연결할 수 없습니다.'); }
+  }
+
+  // ---------- 자주쓰는 사이트 ----------
+  function renderLinksInto(container, links){
+    const addTile = '<li><a href="#" onclick="event.preventDefault();openLinkModal();"><div class="qicon">+</div><div class="qtxt"><div class="name">사이트 추가</div><div class="desc">즐겨찾기 등록</div></div></a></li>';
+    if(!links || links.length === 0){
+      container.innerHTML = addTile;
+      return;
+    }
+    container.innerHTML = links.map(l => `
+      <li><a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">
+        <div class="qicon">${escapeHtml((l.name || '?').charAt(0))}</div>
+        <div class="qtxt"><div class="name">${escapeHtml(l.name)}</div><div class="desc">${escapeHtml(l.desc || '')}</div></div>
+      </a></li>`).join('') + addTile;
+  }
+  async function loadLinks(){
+    const containers = document.querySelectorAll('.quicklink-list');
+    try{
+      const res = await fetch(BACKEND_URL + '/links', { headers: authHeaders() });
+      if(res.status === 401){ doLogout(); return; }
+      const links = await res.json();
+      containers.forEach(el => renderLinksInto(el, links));
+    }catch(e){
+      containers.forEach(el => { el.innerHTML = '<li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">사이트 목록을 불러오지 못했습니다.</li>'; });
+    }
+  }
+  function openLinkModal(){
+    document.getElementById('linkName').value = '';
+    document.getElementById('linkDesc').value = '';
+    document.getElementById('linkUrl').value = '';
+    document.getElementById('linkErr').style.display = 'none';
+    document.getElementById('linkModalOverlay').style.display = 'flex';
+  }
+  function closeLinkModal(){
+    document.getElementById('linkModalOverlay').style.display = 'none';
+  }
+  async function saveLink(){
+    const name = document.getElementById('linkName').value.trim();
+    const desc = document.getElementById('linkDesc').value.trim();
+    let url = document.getElementById('linkUrl').value.trim();
+    const errEl = document.getElementById('linkErr');
+    errEl.style.display = 'none';
+    if(!name || !url){
+      errEl.textContent = '사이트 이름과 URL은 필수입니다.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    try{
+      const res = await fetch(BACKEND_URL + '/links', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ name, desc, url })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){
+        errEl.textContent = data.error || '등록에 실패했습니다.';
+        errEl.style.display = 'block';
+        return;
+      }
+      closeLinkModal();
+      loadLinks();
+    }catch(e){
+      errEl.textContent = '서버에 연결할 수 없습니다.';
+      errEl.style.display = 'block';
+    }
   }
 
   function doLogout(){
@@ -638,6 +810,7 @@
     localStorage.removeItem('fnc_name');
     localStorage.removeItem('fnc_role');
     localStorage.removeItem('fnc_center');
+    localStorage.removeItem('fnc_id');
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById('login').classList.add('active');
   }
@@ -674,6 +847,7 @@
       localStorage.setItem('fnc_name', data.name || '');
       localStorage.setItem('fnc_role', data.role || 'general');
       localStorage.setItem('fnc_center', data.centerName || '');
+      localStorage.setItem('fnc_id', data.id || id);
       enterApp(data.role, data.name, data.centerName);
     }catch(e){
       errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.';
