@@ -6,6 +6,13 @@
  *   GET  /api                   -> 최신(가장 최근 날짜) 데이터 반환
  *   POST /api  (JSON body)      -> workDateStr 기준으로 저장(있으면 덮어씀, 없으면 새로 추가)
  *
+ * 로그인 / 계정관리 API:
+ *   POST   /api/login           -> { id, password } 검증 후 토큰 발급
+ *   GET    /api/users           -> 계정 목록 (관리자 전용)
+ *   POST   /api/users           -> 계정 생성 (관리자 전용)
+ *   PUT    /api/users/:id       -> 계정 수정 (관리자 전용)
+ *   DELETE /api/users/:id       -> 계정 삭제 (관리자 전용)
+ *
  * 데이터는 이 서버의 SQLite 파일(data.sqlite)에 저장됩니다. (구글시트 대신 직접 관리하는 DB)
  */
 const express = require("express");
@@ -40,19 +47,42 @@ db.exec(`
   )
 `);
 
+// 재사용할 prepared statement들을 모듈 전역에 보관합니다.
+// (요청마다 db.prepare()를 새로 호출하면, 일부 Node/better-sqlite3 조합에서
+//  임시 Statement 객체가 곧바로 GC되면서 네이티브 크래시(Assertion failed)가
+//  발생하는 경우가 있어 이를 방지하기 위함입니다.)
+const stmt = {
+  countUsers: db.prepare("SELECT COUNT(*) AS c FROM users"),
+  insertUser: db.prepare(`
+    INSERT INTO users (id, passwordHash, name, centerName, role, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `),
+  getUserById: db.prepare("SELECT * FROM users WHERE id = ?"),
+  listUsers: db.prepare("SELECT id, name, centerName, role, createdAt FROM users ORDER BY createdAt ASC"),
+  updateUser: db.prepare(`UPDATE users SET passwordHash=?, name=?, centerName=?, role=? WHERE id=?`),
+  deleteUser: db.prepare("DELETE FROM users WHERE id = ?"),
+  countAdmins: db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"),
+  getStateByDate: db.prepare("SELECT * FROM state WHERE workDateStr = ?"),
+  getLatestState: db.prepare("SELECT * FROM state ORDER BY workDateStr DESC LIMIT 1"),
+  upsertState: db.prepare(`
+    INSERT INTO state (workDateStr, json, updatedAt)
+    VALUES (@workDateStr, @json, @updatedAt)
+    ON CONFLICT(workDateStr) DO UPDATE SET json=excluded.json, updatedAt=excluded.updatedAt
+  `),
+  listState: db.prepare("SELECT workDateStr, updatedAt FROM state ORDER BY workDateStr DESC LIMIT 90"),
+};
+
 // 최초 실행 시 기본 관리자 계정 자동 생성 (센터 ID: admin / 비밀번호: admin1234)
 // 로그인 후 반드시 센터 계정관리에서 비밀번호를 변경하거나 새 관리자 계정을 만들고 이 계정은 삭제하세요.
-(function seedAdmin(){
-  const count = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
+function seedAdmin() {
+  const count = stmt.countUsers.get().c;
   if (count === 0) {
     const hash = bcrypt.hashSync("admin1234", 10);
-    db.prepare(`
-      INSERT INTO users (id, passwordHash, name, centerName, role, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run("admin", hash, "관리자", "전체 센터 관리", "admin", new Date().toISOString());
+    stmt.insertUser.run("admin", hash, "관리자", "전체 센터 관리", "admin", new Date().toISOString());
     console.log("기본 관리자 계정 생성됨 -> id: admin / password: admin1234 (로그인 후 꼭 변경하세요)");
   }
-})();
+}
+seedAdmin();
 
 app.use(cors());               // 대시보드가 다른 도메인(GitHub Pages)에서 호출하므로 CORS 허용
 // 대시보드가 text/plain으로 보내는 경우(CORS preflight 회피)도 JSON으로 파싱되게 처리
@@ -83,7 +113,7 @@ app.post("/api/login", (req, res) => {
   if (!id || !password) {
     return res.status(400).json({ ok: false, error: "센터 ID와 비밀번호를 입력하세요." });
   }
-  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
+  const user = stmt.getUserById.get(id);
   if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
     return res.status(401).json({ ok: false, error: "센터 ID 또는 비밀번호가 올바르지 않습니다." });
   }
@@ -97,8 +127,7 @@ app.post("/api/login", (req, res) => {
 
 // ---------- 센터 계정관리 (관리자 전용) ----------
 app.get("/api/users", requireAuth, requireAdmin, (req, res) => {
-  const rows = db.prepare("SELECT id, name, centerName, role, createdAt FROM users ORDER BY createdAt ASC").all();
-  res.json(rows);
+  res.json(stmt.listUsers.all());
 });
 
 app.post("/api/users", requireAuth, requireAdmin, (req, res) => {
@@ -106,21 +135,18 @@ app.post("/api/users", requireAuth, requireAdmin, (req, res) => {
   if (!id || !password || !name) {
     return res.status(400).json({ ok: false, error: "센터 ID, 이름, 비밀번호는 필수입니다." });
   }
-  const exists = db.prepare("SELECT id FROM users WHERE id = ?").get(id);
+  const exists = stmt.getUserById.get(id);
   if (exists) {
     return res.status(409).json({ ok: false, error: "이미 존재하는 센터 ID입니다." });
   }
   const hash = bcrypt.hashSync(password, 10);
-  db.prepare(`
-    INSERT INTO users (id, passwordHash, name, centerName, role, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, hash, name, centerName || "", role === "admin" ? "admin" : "general", new Date().toISOString());
+  stmt.insertUser.run(id, hash, name, centerName || "", role === "admin" ? "admin" : "general", new Date().toISOString());
   res.json({ ok: true });
 });
 
 app.put("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
   const targetId = req.params.id;
-  const existing = db.prepare("SELECT * FROM users WHERE id = ?").get(targetId);
+  const existing = stmt.getUserById.get(targetId);
   if (!existing) return res.status(404).json({ ok: false, error: "계정을 찾을 수 없습니다." });
 
   const { password, name, centerName, role } = req.body || {};
@@ -129,21 +155,19 @@ app.put("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
   const newRole = role === "admin" ? "admin" : "general";
   const newHash = password ? bcrypt.hashSync(password, 10) : existing.passwordHash;
 
-  db.prepare(`
-    UPDATE users SET passwordHash=?, name=?, centerName=?, role=? WHERE id=?
-  `).run(newHash, newName, newCenter, newRole, targetId);
+  stmt.updateUser.run(newHash, newName, newCenter, newRole, targetId);
   res.json({ ok: true });
 });
 
 app.delete("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
   const targetId = req.params.id;
-  const adminCount = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'").get().c;
-  const target = db.prepare("SELECT * FROM users WHERE id = ?").get(targetId);
+  const adminCount = stmt.countAdmins.get().c;
+  const target = stmt.getUserById.get(targetId);
   if (!target) return res.status(404).json({ ok: false, error: "계정을 찾을 수 없습니다." });
   if (target.role === "admin" && adminCount <= 1) {
     return res.status(400).json({ ok: false, error: "마지막 관리자 계정은 삭제할 수 없습니다." });
   }
-  db.prepare("DELETE FROM users WHERE id = ?").run(targetId);
+  stmt.deleteUser.run(targetId);
   res.json({ ok: true });
 });
 
@@ -157,10 +181,10 @@ app.get("/api", (req, res) => {
   const { date } = req.query;
   let row;
   if (date) {
-    row = db.prepare("SELECT * FROM state WHERE workDateStr = ?").get(date);
+    row = stmt.getStateByDate.get(date);
   }
   if (!row) {
-    row = db.prepare("SELECT * FROM state ORDER BY workDateStr DESC LIMIT 1").get();
+    row = stmt.getLatestState.get();
   }
   if (!row) return res.json({});
   try {
@@ -180,19 +204,14 @@ app.post("/api", (req, res) => {
   const json = JSON.stringify(payload);
   const updatedAt = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO state (workDateStr, json, updatedAt)
-    VALUES (@workDateStr, @json, @updatedAt)
-    ON CONFLICT(workDateStr) DO UPDATE SET json=excluded.json, updatedAt=excluded.updatedAt
-  `).run({ workDateStr, json, updatedAt });
+  stmt.upsertState.run({ workDateStr, json, updatedAt });
 
   res.json({ ok: true, workDateStr, updatedAt });
 });
 
 // 지난 기록 목록 (일별 로그 카드에서 활용 가능)
 app.get("/api/list", (req, res) => {
-  const rows = db.prepare("SELECT workDateStr, updatedAt FROM state ORDER BY workDateStr DESC LIMIT 90").all();
-  res.json(rows);
+  res.json(stmt.listState.all());
 });
 
 app.listen(PORT, () => {
