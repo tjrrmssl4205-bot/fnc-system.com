@@ -218,18 +218,21 @@
   .board-list .pin{background:var(--bad-bg);color:var(--bad);font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:5px;flex-shrink:0;}
   .board-list .cat{background:var(--surface-2);color:var(--ink-soft);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:5px;flex-shrink:0;}
   .board-list .ttl{flex:1;min-width:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .attach-link{margin-left:6px;text-decoration:none;font-size:12px;}
   .board-list .meta{color:var(--ink-faint);font-size:11px;flex-shrink:0;font-family:'Roboto Mono',monospace;}
 
-  .quicklink-card .card-head{padding:14px 18px 10px;border-bottom:none;}
-  .quicklink-card .card-head p{font-size:11px;color:var(--ink-faint);margin:2px 0 0;}
+  .quicklink-card .card-head{padding:14px 18px 10px;border-bottom:none;align-items:flex-start;}
+  .quicklink-card .card-head .hd-title p{font-size:11px;color:var(--ink-faint);margin:2px 0 0;}
   .quicklink-list{list-style:none;margin:0;padding:6px 10px 14px;display:flex;flex-direction:column;gap:4px;}
+  .quicklink-list li{display:flex;align-items:center;}
   .quicklink-list li a{
-    display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:var(--ink);
+    flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:var(--ink);
   }
   .quicklink-list li a:hover{background:var(--surface-2);}
   .quicklink-list .qicon{width:30px;height:30px;border-radius:8px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
-  .quicklink-list .qtxt .name{font-size:12.5px;font-weight:700;color:var(--ink);}
-  .quicklink-list .qtxt .desc{font-size:10.5px;color:var(--ink-faint);margin-top:1px;}
+  .quicklink-list .qtxt{min-width:0;}
+  .quicklink-list .qtxt .name{font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .quicklink-list .qtxt .desc{font-size:10.5px;color:var(--ink-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
   .daily-embed{
     background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);
@@ -365,7 +368,7 @@
           <ul class="board-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
         <div class="board-card quicklink-card">
-          <div class="card-head"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div>
+          <div class="card-head"><div class="hd-title"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div><button class="new-btn" onclick="openLinkModal()">+ 추가</button></div>
           <ul class="quicklink-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
       </div>
@@ -516,7 +519,7 @@
           <ul class="board-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
         <div class="board-card quicklink-card">
-          <div class="card-head"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div>
+          <div class="card-head"><div class="hd-title"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div><button class="new-btn" onclick="openLinkModal()">+ 추가</button></div>
           <ul class="quicklink-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
       </div>
@@ -615,6 +618,9 @@
       </select>
     </div>
     <div class="field"><label>제목</label><input type="text" id="postTitle" placeholder="게시글 제목" /></div>
+    <div class="field"><label>첨부파일 <span style="font-weight:400;color:var(--ink-faint);">(선택, 8MB 이하)</span></label>
+      <input type="file" id="postFile" />
+    </div>
     <div id="postErr" class="login-err" style="display:none;"></div>
     <div class="acc-form-actions">
       <button class="acc-save-btn" onclick="savePost()">등록</button>
@@ -677,7 +683,11 @@
       const catClass = p.category === '공지' ? 'pin' : 'cat';
       const canDelete = myRole === 'admin' || p.authorId === myId;
       const delBtn = canDelete ? `<button class="del-x" title="삭제" onclick="deletePost(${p.id})">×</button>` : '';
-      return `<li><span class="${catClass}">${escapeHtml(p.category || '공유')}</span><span class="ttl">${escapeHtml(p.title)}</span><span class="meta">${formatDate(p.createdAt)}${delBtn}</span></li>`;
+      const token = encodeURIComponent(localStorage.getItem('fnc_token') || '');
+      const attach = p.attachmentName
+        ? `<a class="attach-link" href="${BACKEND_URL}/posts/${p.id}/attachment?token=${token}" target="_blank" title="${escapeHtml(p.attachmentName)}">📎</a>`
+        : '';
+      return `<li><span class="${catClass}">${escapeHtml(p.category || '공유')}</span><span class="ttl">${escapeHtml(p.title)}${attach}</span><span class="meta">${formatDate(p.createdAt)}${delBtn}</span></li>`;
     }).join('');
   }
   async function loadPosts(){
@@ -694,15 +704,31 @@
   function openPostModal(){
     document.getElementById('postCategory').value = '공지';
     document.getElementById('postTitle').value = '';
+    document.getElementById('postFile').value = '';
     document.getElementById('postErr').style.display = 'none';
     document.getElementById('postModalOverlay').style.display = 'flex';
   }
   function closePostModal(){
     document.getElementById('postModalOverlay').style.display = 'none';
   }
+  function readFileAsBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // "data:<mime>;base64,XXXX" 에서 base64 부분만 추출
+        const result = reader.result || '';
+        const idx = result.indexOf(',');
+        resolve(idx >= 0 ? result.slice(idx + 1) : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
   async function savePost(){
     const category = document.getElementById('postCategory').value;
     const title = document.getElementById('postTitle').value.trim();
+    const fileEl = document.getElementById('postFile');
+    const file = fileEl.files && fileEl.files[0];
     const errEl = document.getElementById('postErr');
     errEl.style.display = 'none';
     if(!title){
@@ -710,11 +736,22 @@
       errEl.style.display = 'block';
       return;
     }
+    if(file && file.size > 8 * 1024 * 1024){
+      errEl.textContent = '첨부파일은 8MB 이하만 가능합니다.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const payload = { category, title };
     try{
+      if(file){
+        payload.attachmentName = file.name;
+        payload.attachmentType = file.type || 'application/octet-stream';
+        payload.attachmentData = await readFileAsBase64(file);
+      }
       const res = await fetch(BACKEND_URL + '/posts', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-        body: JSON.stringify({ category, title })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if(!res.ok || !data.ok){
@@ -741,16 +778,18 @@
 
   // ---------- 자주쓰는 사이트 ----------
   function renderLinksInto(container, links){
-    const addTile = '<li><a href="#" onclick="event.preventDefault();openLinkModal();"><div class="qicon">+</div><div class="qtxt"><div class="name">사이트 추가</div><div class="desc">즐겨찾기 등록</div></div></a></li>';
     if(!links || links.length === 0){
-      container.innerHTML = addTile;
+      container.innerHTML = '<li style="padding:10px;color:var(--ink-faint);font-size:12px;">등록된 사이트가 없습니다. 오른쪽 위 "+ 추가"를 눌러 등록하세요.</li>';
       return;
     }
     container.innerHTML = links.map(l => `
-      <li><a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">
-        <div class="qicon">${escapeHtml((l.name || '?').charAt(0))}</div>
-        <div class="qtxt"><div class="name">${escapeHtml(l.name)}</div><div class="desc">${escapeHtml(l.desc || '')}</div></div>
-      </a></li>`).join('') + addTile;
+      <li>
+        <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">
+          <div class="qicon">${escapeHtml((l.name || '?').charAt(0))}</div>
+          <div class="qtxt"><div class="name">${escapeHtml(l.name)}</div><div class="desc">${escapeHtml(l.desc || '')}</div></div>
+        </a>
+        <button class="del-x" title="삭제" onclick="deleteLink(${l.id})">×</button>
+      </li>`).join('');
   }
   async function loadLinks(){
     const containers = document.querySelectorAll('.quicklink-list');
@@ -803,6 +842,15 @@
       errEl.textContent = '서버에 연결할 수 없습니다.';
       errEl.style.display = 'block';
     }
+  }
+  async function deleteLink(id){
+    if(!confirm('이 사이트를 삭제하시겠습니까?')) return;
+    try{
+      const res = await fetch(BACKEND_URL + '/links/' + id, { method: 'DELETE', headers: authHeaders() });
+      const data = await res.json();
+      if(!res.ok || !data.ok){ alert(data.error || '삭제에 실패했습니다.'); return; }
+      loadLinks();
+    }catch(e){ alert('서버에 연결할 수 없습니다.'); }
   }
 
   function doLogout(){
