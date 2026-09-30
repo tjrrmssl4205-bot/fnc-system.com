@@ -377,26 +377,14 @@
     <!-- 일일보고현황 -->
     <div class="content-panel" data-panel="daily" data-scope="app">
       <div class="main-header">
-        <div><h2>일일보고현황</h2><div class="sub">동서울 물류센터 · 오늘 기준</div></div>
-        <div class="date-pill">2026-09-23 (수)</div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-card"><div class="k">직영 인원</div><div class="v">30 <span>명</span></div></div>
-        <div class="stat-card"><div class="k">협력사 인원</div><div class="v">140 <span>명</span></div></div>
-        <div class="stat-card"><div class="k">금일 출근</div><div class="v">162 <span>/ 170</span></div></div>
-        <div class="stat-card"><div class="k">출근율</div><div class="v" style="color:var(--good)">95.3<span>%</span></div></div>
-      </div>
-      <div class="daily-embed">
-        <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg></div>
-        <div class="txt">
-          <h4>현재 사용 중인 일일보고 대시보드</h4>
-          <p>기존에 쓰던 일일출근현황 대시보드를 이 메뉴에 그대로 연결합니다 (별도 개편 없음)</p>
-        </div>
-        <button class="go-btn" onclick="window.open('daily-report.html','_blank')">
-          기존 대시보드 열기
+        <div><h2>일일보고현황</h2><div class="sub">동서울 물류센터 · 센터 일일 마감보고 (월/센터 선택, 그래프)</div></div>
+        <a href="daily-report.html" target="_blank" class="go-btn" style="text-decoration:none;">
+          새 창에서 크게 보기
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M7 17L17 7M7 7h10v10"/></svg>
-        </button>
+        </a>
       </div>
+      <iframe id="dailyEmbedFrame-app" src="" data-src="daily-report.html?embedded=1" title="센터 일일 마감보고" loading="lazy"
+        style="width:100%;min-height:1400px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;"></iframe>
     </div>
 
     <!-- 물류비계산 -->
@@ -527,23 +515,14 @@
 
     <div class="content-panel" data-panel="daily" data-scope="app-admin">
       <div class="main-header">
-        <div><h2>일일보고현황</h2><div class="sub">동서울 물류센터 · 오늘 기준 (관리자 보기)</div></div>
-        <div class="date-pill">2026-09-23 (수)</div>
+        <div><h2>일일보고현황</h2><div class="sub">동서울 물류센터 · 센터 일일 마감보고 (관리자 보기)</div></div>
+        <a href="daily-report.html" target="_blank" class="go-btn" style="text-decoration:none;">
+          새 창에서 크게 보기
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M7 17L17 7M7 7h10v10"/></svg>
+        </a>
       </div>
-      <div class="stat-row">
-        <div class="stat-card"><div class="k">직영 인원</div><div class="v">30 <span>명</span></div></div>
-        <div class="stat-card"><div class="k">협력사 인원</div><div class="v">140 <span>명</span></div></div>
-        <div class="stat-card"><div class="k">금일 출근</div><div class="v">162 <span>/ 170</span></div></div>
-        <div class="stat-card"><div class="k">출근율</div><div class="v" style="color:var(--good)">95.3<span>%</span></div></div>
-      </div>
-      <div class="daily-embed">
-        <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg></div>
-        <div class="txt">
-          <h4>현재 사용 중인 일일보고 대시보드</h4>
-          <p>기존에 쓰던 일일출근현황 대시보드를 이 메뉴에 그대로 연결합니다 (별도 개편 없음)</p>
-        </div>
-        <button class="go-btn" onclick="window.open('daily-report.html','_blank')">기존 대시보드 열기</button>
-      </div>
+      <iframe id="dailyEmbedFrame-app-admin" src="" data-src="daily-report.html?embedded=1" title="센터 일일 마감보고" loading="lazy"
+        style="width:100%;min-height:1400px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;"></iframe>
     </div>
 
     <div class="content-panel" data-panel="cost" data-scope="app-admin">
@@ -668,7 +647,16 @@
     setUserUI(name || '사용자', centerName || (role==='admin' ? '전체 센터 관리 권한' : '일반'));
     loadPosts();
     loadLinks();
+    loadDailyEmbed();
     if(role === 'admin') loadUsers();
+  }
+
+  // 일일보고현황 메뉴 안에 '센터 일일 마감보고' 툴을 그대로 임베드 (로그인 토큰이 준비된 후에만 로드)
+  function loadDailyEmbed(){
+    ['dailyEmbedFrame-app', 'dailyEmbedFrame-app-admin'].forEach(id => {
+      const f = document.getElementById(id);
+      if (f && !f.getAttribute('src')) f.setAttribute('src', f.dataset.src);
+    });
   }
 
   // ---------- 게시판 ----------
