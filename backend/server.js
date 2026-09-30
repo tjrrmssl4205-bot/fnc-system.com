@@ -68,6 +68,23 @@ db.exec(`
     createdAt TEXT NOT NULL
   )
 `);
+// 일일 마감보고 (센터 일일 마감보고 툴 - 기존 대시보드를 대체)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS daily_entries (
+    center TEXT NOT NULL,
+    date TEXT NOT NULL,
+    json TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    PRIMARY KEY (center, date)
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS daily_config (
+    id TEXT PRIMARY KEY,
+    json TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  )
+`);
 
 // 재사용할 prepared statement들을 모듈 전역에 보관합니다.
 // (요청마다 db.prepare()를 새로 호출하면, 일부 Node/better-sqlite3 조합에서
@@ -106,6 +123,21 @@ const stmt = {
   insertLink: db.prepare(`INSERT INTO links (name, desc, url, createdAt) VALUES (?, ?, ?, ?)`),
   listLinks: db.prepare("SELECT id, name, desc, url, createdAt FROM links ORDER BY id ASC"),
   deleteLink: db.prepare("DELETE FROM links WHERE id = ?"),
+
+  listDailyEntries: db.prepare("SELECT center, date, json, updatedAt FROM daily_entries ORDER BY date ASC"),
+  upsertDailyEntry: db.prepare(`
+    INSERT INTO daily_entries (center, date, json, updatedAt)
+    VALUES (@center, @date, @json, @updatedAt)
+    ON CONFLICT(center, date) DO UPDATE SET json=excluded.json, updatedAt=excluded.updatedAt
+  `),
+  deleteDailyEntry: db.prepare("DELETE FROM daily_entries WHERE center = ? AND date = ?"),
+
+  getDailyConfig: db.prepare("SELECT json FROM daily_config WHERE id = 'default'"),
+  upsertDailyConfig: db.prepare(`
+    INSERT INTO daily_config (id, json, updatedAt)
+    VALUES ('default', @json, @updatedAt)
+    ON CONFLICT(id) DO UPDATE SET json=excluded.json, updatedAt=excluded.updatedAt
+  `),
 };
 
 // 최초 실행 시 기본 관리자 계정 자동 생성 (센터 ID: admin / 비밀번호: admin1234)
@@ -119,6 +151,24 @@ function seedAdmin() {
   }
 }
 seedAdmin();
+
+// 고정 관리자 계정 2개 자동 생성/보정 (id: fnc / tjrrmssl, 비밀번호: 1111)
+// 이미 존재하면 건드리지 않고, 없을 때만 새로 만듭니다.
+function seedFixedAdmins() {
+  const fixedAccounts = [
+    { id: "fnc", password: "1111", name: "fnc 관리자", centerName: "전체 센터 관리" },
+    { id: "tjrrmssl", password: "1111", name: "tjrrmssl 관리자", centerName: "전체 센터 관리" },
+  ];
+  fixedAccounts.forEach((acc) => {
+    const exists = stmt.getUserById.get(acc.id);
+    if (!exists) {
+      const hash = bcrypt.hashSync(acc.password, 10);
+      stmt.insertUser.run(acc.id, hash, acc.name, acc.centerName, "admin", new Date().toISOString());
+      console.log(`고정 관리자 계정 생성됨 -> id: ${acc.id} / password: ${acc.password}`);
+    }
+  });
+}
+seedFixedAdmins();
 
 // 최초 실행 시 예시 게시글/자주쓰는 사이트 기본값 등록 (모두 비어있을 때만)
 function seedBoard() {
@@ -303,6 +353,58 @@ app.post("/api/links", requireAuth, (req, res) => {
 
 app.delete("/api/links/:id", requireAuth, (req, res) => {
   stmt.deleteLink.run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---------- 일일 마감보고 (센터 일일 마감보고 툴 - 서버 공유 저장) ----------
+// 항목 목록 전체 반환: [{ center, date, ...entry필드, updatedAt }]
+app.get("/api/daily/entries", requireAuth, (req, res) => {
+  const rows = stmt.listDailyEntries.all();
+  const result = rows.map((r) => {
+    let data = {};
+    try { data = JSON.parse(r.json); } catch (e) { data = {}; }
+    return { center: r.center, date: r.date, updatedAt: r.updatedAt, ...data };
+  });
+  res.json(result);
+});
+
+// 항목 저장(업서트): body = { center, date, ...entry필드 }
+app.post("/api/daily/entries", requireAuth, (req, res) => {
+  const { center, date, ...entry } = req.body || {};
+  if (!center || !date) {
+    return res.status(400).json({ ok: false, error: "center와 date는 필수입니다." });
+  }
+  const json = JSON.stringify(entry);
+  const updatedAt = new Date().toISOString();
+  stmt.upsertDailyEntry.run({ center, date, json, updatedAt });
+  res.json({ ok: true });
+});
+
+// 항목 삭제
+app.delete("/api/daily/entries/:center/:date", requireAuth, (req, res) => {
+  stmt.deleteDailyEntry.run(req.params.center, req.params.date);
+  res.json({ ok: true });
+});
+
+// 설정(센터 목록, 목표 마감시간 등) 조회/저장 - 회사 전체 공용 설정 1개
+app.get("/api/daily/config", requireAuth, (req, res) => {
+  const row = stmt.getDailyConfig.get();
+  if (!row) return res.json(null);
+  try {
+    res.json(JSON.parse(row.json));
+  } catch (e) {
+    res.status(500).json({ ok: false, error: "설정을 읽는 중 오류가 발생했습니다." });
+  }
+});
+
+app.post("/api/daily/config", requireAuth, (req, res) => {
+  const payload = req.body;
+  if (!payload || typeof payload !== "object") {
+    return res.status(400).json({ ok: false, error: "invalid JSON body" });
+  }
+  const json = JSON.stringify(payload);
+  const updatedAt = new Date().toISOString();
+  stmt.upsertDailyConfig.run({ json, updatedAt });
   res.json({ ok: true });
 });
 
