@@ -619,7 +619,10 @@
     </div>
     <div class="field"><label>제목</label><input type="text" id="postTitle" placeholder="게시글 제목" /></div>
     <div class="field"><label>첨부파일 <span style="font-weight:400;color:var(--ink-faint);">(선택, 8MB 이하)</span></label>
-      <input type="file" id="postFile" />
+      <div id="postDropZone" style="border:1px dashed var(--line2,#c9d1d8); border-radius:8px; padding:14px; text-align:center; cursor:pointer; transition:background .12s,border-color .12s;">
+        <input type="file" id="postFile" style="display:block; margin:0 auto;" />
+        <div id="postDropHint" style="font-size:12px; color:var(--ink-faint,#7a8591); margin-top:6px;">파일을 이 영역으로 드래그해서 놓아도 됩니다</div>
+      </div>
     </div>
     <div id="postErr" class="login-err" style="display:none;"></div>
     <div class="acc-form-actions">
@@ -705,12 +708,43 @@
     document.getElementById('postCategory').value = '공지';
     document.getElementById('postTitle').value = '';
     document.getElementById('postFile').value = '';
+    const dropHint = document.getElementById('postDropHint');
+    if(dropHint) dropHint.textContent = '파일을 이 영역으로 드래그해서 놓아도 됩니다';
     document.getElementById('postErr').style.display = 'none';
     document.getElementById('postModalOverlay').style.display = 'flex';
   }
   function closePostModal(){
     document.getElementById('postModalOverlay').style.display = 'none';
   }
+  function setupPostDropZone(){
+    const zone = document.getElementById('postDropZone');
+    const fileEl = document.getElementById('postFile');
+    const hint = document.getElementById('postDropHint');
+    if(!zone || !fileEl) return;
+    const updateHint = () => {
+      const f = fileEl.files && fileEl.files[0];
+      hint.textContent = f ? ('선택된 파일: ' + f.name) : '파일을 이 영역으로 드래그해서 놓아도 됩니다';
+    };
+    fileEl.addEventListener('change', updateHint);
+    ['dragenter','dragover'].forEach(evt => zone.addEventListener(evt, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      zone.style.borderColor = 'var(--accent, #1f5fae)';
+      zone.style.background = 'var(--hover, rgba(31,95,174,.07))';
+    }));
+    ['dragleave','drop'].forEach(evt => zone.addEventListener(evt, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      zone.style.borderColor = 'var(--line2, #c9d1d8)';
+      zone.style.background = 'transparent';
+    }));
+    zone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      if(dt && dt.files && dt.files.length){
+        fileEl.files = dt.files;
+        updateHint();
+      }
+    });
+  }
+  setupPostDropZone();
   function readFileAsBase64(file){
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
