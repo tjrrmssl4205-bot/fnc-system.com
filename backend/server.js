@@ -46,6 +46,25 @@ db.exec(`
     createdAt TEXT NOT NULL
   )
 `);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL DEFAULT '공유',
+    title TEXT NOT NULL,
+    authorId TEXT,
+    authorName TEXT,
+    createdAt TEXT NOT NULL
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    desc TEXT,
+    url TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  )
+`);
 
 // 재사용할 prepared statement들을 모듈 전역에 보관합니다.
 // (요청마다 db.prepare()를 새로 호출하면, 일부 Node/better-sqlite3 조합에서
@@ -70,6 +89,17 @@ const stmt = {
     ON CONFLICT(workDateStr) DO UPDATE SET json=excluded.json, updatedAt=excluded.updatedAt
   `),
   listState: db.prepare("SELECT workDateStr, updatedAt FROM state ORDER BY workDateStr DESC LIMIT 90"),
+
+  countPosts: db.prepare("SELECT COUNT(*) AS c FROM posts"),
+  insertPost: db.prepare(`INSERT INTO posts (category, title, authorId, authorName, createdAt) VALUES (?, ?, ?, ?, ?)`),
+  listPosts: db.prepare("SELECT id, category, title, authorId, authorName, createdAt FROM posts ORDER BY id DESC LIMIT 200"),
+  getPostById: db.prepare("SELECT * FROM posts WHERE id = ?"),
+  deletePost: db.prepare("DELETE FROM posts WHERE id = ?"),
+
+  countLinks: db.prepare("SELECT COUNT(*) AS c FROM links"),
+  insertLink: db.prepare(`INSERT INTO links (name, desc, url, createdAt) VALUES (?, ?, ?, ?)`),
+  listLinks: db.prepare("SELECT id, name, desc, url, createdAt FROM links ORDER BY id ASC"),
+  deleteLink: db.prepare("DELETE FROM links WHERE id = ?"),
 };
 
 // 최초 실행 시 기본 관리자 계정 자동 생성 (센터 ID: admin / 비밀번호: admin1234)
@@ -83,6 +113,36 @@ function seedAdmin() {
   }
 }
 seedAdmin();
+
+// 최초 실행 시 예시 게시글/자주쓰는 사이트 기본값 등록 (모두 비어있을 때만)
+function seedBoard() {
+  if (stmt.countPosts.get().c === 0) {
+    const now = new Date().toISOString();
+    const samples = [
+      ["공지", "9월 정기 안전점검 일정 안내"],
+      ["서식", "근태 매트릭스 최신 양식 업로드"],
+      ["공유", "추석 연휴 물류 일정 조정 건"],
+      ["서식", "사고경위서 작성 양식(개정판)"],
+      ["공유", "아워홈 WMS 점검 안내(9/25 새벽)"],
+    ];
+    samples.forEach(([category, title]) => {
+      stmt.insertPost.run(category, title, "admin", "관리자", now);
+    });
+  }
+  if (stmt.countLinks.get().c === 0) {
+    const now = new Date().toISOString();
+    const samples = [
+      ["아워홈 WMS", "물류관리시스템", "https://example.com"],
+      ["QR 출퇴근 시스템", "직원 출근체크", "https://example.com"],
+      ["채용 관리", "지원자 현황", "https://example.com"],
+      ["전자결재", "그룹웨어", "https://example.com"],
+    ];
+    samples.forEach(([name, desc, url]) => {
+      stmt.insertLink.run(name, desc, url, now);
+    });
+  }
+}
+seedBoard();
 
 app.use(cors());               // 대시보드가 다른 도메인(GitHub Pages)에서 호출하므로 CORS 허용
 // 대시보드가 text/plain으로 보내는 경우(CORS preflight 회피)도 JSON으로 파싱되게 처리
@@ -122,7 +182,7 @@ app.post("/api/login", (req, res) => {
     JWT_SECRET,
     { expiresIn: "7d" }
   );
-  res.json({ ok: true, token, name: user.name, role: user.role, centerName: user.centerName });
+  res.json({ ok: true, token, id: user.id, name: user.name, role: user.role, centerName: user.centerName });
 });
 
 // ---------- 센터 계정관리 (관리자 전용) ----------
@@ -168,6 +228,49 @@ app.delete("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
     return res.status(400).json({ ok: false, error: "마지막 관리자 계정은 삭제할 수 없습니다." });
   }
   stmt.deleteUser.run(targetId);
+  res.json({ ok: true });
+});
+
+// ---------- 게시판 ----------
+app.get("/api/posts", requireAuth, (req, res) => {
+  res.json(stmt.listPosts.all());
+});
+
+app.post("/api/posts", requireAuth, (req, res) => {
+  const { category, title } = req.body || {};
+  if (!title) {
+    return res.status(400).json({ ok: false, error: "제목을 입력하세요." });
+  }
+  stmt.insertPost.run(category || "공유", title, req.user.id, req.user.name, new Date().toISOString());
+  res.json({ ok: true });
+});
+
+app.delete("/api/posts/:id", requireAuth, (req, res) => {
+  const post = stmt.getPostById.get(req.params.id);
+  if (!post) return res.status(404).json({ ok: false, error: "게시글을 찾을 수 없습니다." });
+  if (req.user.role !== "admin" && post.authorId !== req.user.id) {
+    return res.status(403).json({ ok: false, error: "본인 글만 삭제할 수 있습니다." });
+  }
+  stmt.deletePost.run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---------- 자주쓰는 사이트 ----------
+app.get("/api/links", requireAuth, (req, res) => {
+  res.json(stmt.listLinks.all());
+});
+
+app.post("/api/links", requireAuth, (req, res) => {
+  const { name, desc, url } = req.body || {};
+  if (!name || !url) {
+    return res.status(400).json({ ok: false, error: "사이트 이름과 URL은 필수입니다." });
+  }
+  stmt.insertLink.run(name, desc || "", url, new Date().toISOString());
+  res.json({ ok: true });
+});
+
+app.delete("/api/links/:id", requireAuth, (req, res) => {
+  stmt.deleteLink.run(req.params.id);
   res.json({ ok: true });
 });
 
