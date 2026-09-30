@@ -53,7 +53,10 @@ db.exec(`
     title TEXT NOT NULL,
     authorId TEXT,
     authorName TEXT,
-    createdAt TEXT NOT NULL
+    createdAt TEXT NOT NULL,
+    attachmentName TEXT,
+    attachmentType TEXT,
+    attachmentData TEXT
   )
 `);
 db.exec(`
@@ -91,8 +94,11 @@ const stmt = {
   listState: db.prepare("SELECT workDateStr, updatedAt FROM state ORDER BY workDateStr DESC LIMIT 90"),
 
   countPosts: db.prepare("SELECT COUNT(*) AS c FROM posts"),
-  insertPost: db.prepare(`INSERT INTO posts (category, title, authorId, authorName, createdAt) VALUES (?, ?, ?, ?, ?)`),
-  listPosts: db.prepare("SELECT id, category, title, authorId, authorName, createdAt FROM posts ORDER BY id DESC LIMIT 200"),
+  insertPost: db.prepare(`
+    INSERT INTO posts (category, title, authorId, authorName, createdAt, attachmentName, attachmentType, attachmentData)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  listPosts: db.prepare("SELECT id, category, title, authorId, authorName, createdAt, attachmentName, attachmentType FROM posts ORDER BY id DESC LIMIT 200"),
   getPostById: db.prepare("SELECT * FROM posts WHERE id = ?"),
   deletePost: db.prepare("DELETE FROM posts WHERE id = ?"),
 
@@ -126,7 +132,7 @@ function seedBoard() {
       ["공유", "아워홈 WMS 점검 안내(9/25 새벽)"],
     ];
     samples.forEach(([category, title]) => {
-      stmt.insertPost.run(category, title, "admin", "관리자", now);
+      stmt.insertPost.run(category, title, "admin", "관리자", now, null, null, null);
     });
   }
   if (stmt.countLinks.get().c === 0) {
@@ -146,12 +152,13 @@ seedBoard();
 
 app.use(cors());               // 대시보드가 다른 도메인(GitHub Pages)에서 호출하므로 CORS 허용
 // 대시보드가 text/plain으로 보내는 경우(CORS preflight 회피)도 JSON으로 파싱되게 처리
-app.use(express.json({ limit: "5mb", type: ["application/json", "text/plain"] }));
+app.use(express.json({ limit: "12mb", type: ["application/json", "text/plain"] }));
 
 // ---------- 인증 미들웨어 ----------
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  let token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token && req.query.token) token = req.query.token; // 첨부파일 다운로드 링크(<a>)용
   if (!token) return res.status(401).json({ ok: false, error: "로그인이 필요합니다." });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
@@ -237,12 +244,37 @@ app.get("/api/posts", requireAuth, (req, res) => {
 });
 
 app.post("/api/posts", requireAuth, (req, res) => {
-  const { category, title } = req.body || {};
+  const { category, title, attachmentName, attachmentType, attachmentData } = req.body || {};
   if (!title) {
     return res.status(400).json({ ok: false, error: "제목을 입력하세요." });
   }
-  stmt.insertPost.run(category || "공유", title, req.user.id, req.user.name, new Date().toISOString());
+  // 첨부파일은 base64로 DB에 저장 (대략 8MB 이하 권장 - Free 요금제 메모리 한도 고려)
+  stmt.insertPost.run(
+    category || "공유",
+    title,
+    req.user.id,
+    req.user.name,
+    new Date().toISOString(),
+    attachmentName || null,
+    attachmentType || null,
+    attachmentData || null
+  );
   res.json({ ok: true });
+});
+
+// 첨부파일 다운로드 (인증: Authorization 헤더 또는 ?token= 쿼리)
+app.get("/api/posts/:id/attachment", requireAuth, (req, res) => {
+  const post = stmt.getPostById.get(req.params.id);
+  if (!post || !post.attachmentData) {
+    return res.status(404).json({ ok: false, error: "첨부파일을 찾을 수 없습니다." });
+  }
+  const buffer = Buffer.from(post.attachmentData, "base64");
+  res.setHeader("Content-Type", post.attachmentType || "application/octet-stream");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${encodeURIComponent(post.attachmentName || "file")}"`
+  );
+  res.send(buffer);
 });
 
 app.delete("/api/posts/:id", requireAuth, (req, res) => {
