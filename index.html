@@ -90,6 +90,30 @@
 
   .login-footer{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:center;}
   .login-footer p{font-size:11px;color:var(--ink-faint);margin:0;font-family:'Roboto Mono',monospace;}
+  .login-err{color:var(--bad);font-size:12.5px;margin:-8px 0 14px;font-weight:600;}
+  .login-btn[disabled]{opacity:0.65;cursor:default;}
+
+  /* ============ 센터 계정관리 ============ */
+  .acc-toolbar{display:flex;justify-content:flex-end;margin-bottom:14px;}
+  .acc-add-btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+  .acc-add-btn:hover{background:#16273f;}
+  .acc-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px;max-width:420px;}
+  .acc-form .field input,.acc-form .field select{
+    width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:9px;
+    font-family:'Inter',sans-serif;font-size:13.5px;color:var(--ink);background:var(--surface-2);
+  }
+  .acc-form .field input:focus,.acc-form .field select:focus{outline:none;border-color:var(--navy-soft);background:#fff;}
+  .acc-form-actions{display:flex;gap:8px;margin-top:6px;}
+  .acc-save-btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+  .acc-save-btn:hover{background:#16273f;}
+  .acc-cancel-btn{background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+  .acc-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+  .acc-table th{text-align:left;font-size:11.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.03em;padding:12px 14px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+  .acc-table td{padding:12px 14px;font-size:13px;color:var(--ink);border-bottom:1px solid var(--border);}
+  .acc-table tr:last-child td{border-bottom:none;}
+  .acc-row-actions{display:flex;gap:6px;}
+  .acc-row-actions button{border:1px solid var(--border);background:var(--surface-2);color:var(--ink-soft);border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
+  .acc-row-actions button:hover{background:var(--surface);color:var(--ink);}
 
   /* ============ 화면 2/3: 로그인 후 (사이드바 레이아웃) ============ */
   #app, #app-admin{min-height:100vh;display:flex;}
@@ -219,12 +243,6 @@
 </head>
 <body>
 
-<div class="mockup-switcher">
-  <button class="active" onclick="showScreen('login', this)">로그인 화면</button>
-  <button onclick="showScreen('app', this)">로그인 후 (일반)</button>
-  <button onclick="showScreen('app-admin', this)">로그인 후 (관리자)</button>
-</div>
-
 <!-- ============ 화면 1: 로그인 ============ -->
 <div id="login" class="screen active">
   <div class="login-slides">
@@ -245,19 +263,21 @@
 
     <div class="field">
       <label>센터 ID</label>
-      <input type="text" placeholder="예: 000물류센터" />
+      <input type="text" id="loginId" placeholder="예: 000물류센터" />
     </div>
     <div class="field">
       <label>비밀번호</label>
-      <input type="password" placeholder="비밀번호 입력" />
+      <input type="password" id="loginPw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin();" />
     </div>
+
+    <div id="loginErr" class="login-err" style="display:none;"></div>
 
     <div class="login-row">
       <label class="checkbox-row"><input type="checkbox" checked/> 로그인 상태 유지</label>
       <a href="#" class="forgot-link">비밀번호 찾기</a>
     </div>
 
-    <button class="login-btn" onclick="showScreen('app', document.querySelectorAll('.mockup-switcher button')[1])">
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
       로그인
     </button>
@@ -314,7 +334,7 @@
           <div class="role">동서울 물류센터</div>
         </div>
       </div>
-      <button class="sb-logout">
+      <button class="sb-logout" onclick="doLogout()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         로그아웃
       </button>
@@ -478,7 +498,7 @@
           <div class="role">전체 센터 관리 권한</div>
         </div>
       </div>
-      <button class="sb-logout">
+      <button class="sb-logout" onclick="doLogout()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         로그아웃
       </button>
@@ -563,22 +583,236 @@
 
     <div class="content-panel" data-panel="accounts" data-scope="app-admin">
       <div class="main-header"><div><h2>센터 계정관리</h2></div></div>
-      <div class="placeholder-card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-        <h3>센터별 계정 목록/권한 관리 영역입니다</h3>
-        <p>센터 ID 발급, 비밀번호 초기화, 권한 설정 기능이 들어갈 예정입니다</p>
+      <div class="acc-toolbar">
+        <button class="acc-add-btn" onclick="openAccForm()">+ 계정 추가</button>
       </div>
+      <div id="accFormWrap" class="acc-form" style="display:none;">
+        <input type="hidden" id="accEditId" value="" />
+        <div class="field"><label>센터 ID (로그인 ID)</label><input type="text" id="accId" /></div>
+        <div class="field"><label>이름</label><input type="text" id="accName" /></div>
+        <div class="field"><label>소속/센터명</label><input type="text" id="accCenter" /></div>
+        <div class="field"><label>권한</label>
+          <select id="accRole"><option value="general">일반</option><option value="admin">관리자</option></select>
+        </div>
+        <div class="field"><label>비밀번호 <span id="accPwHint" style="font-weight:400;"></span></label>
+          <input type="password" id="accPw" placeholder="새 계정: 필수 / 수정 시: 변경할 때만 입력" />
+        </div>
+        <div id="accErr" class="login-err" style="display:none;"></div>
+        <div class="acc-form-actions">
+          <button class="acc-save-btn" onclick="saveAccount()">저장</button>
+          <button class="acc-cancel-btn" onclick="closeAccForm()">취소</button>
+        </div>
+      </div>
+      <table class="acc-table">
+        <thead><tr><th>센터 ID</th><th>이름</th><th>소속/센터명</th><th>권한</th><th></th></tr></thead>
+        <tbody id="accTbody"><tr><td colspan="5">불러오는 중...</td></tr></tbody>
+      </table>
     </div>
   </div>
 </div>
 
 <script>
-  function showScreen(id, btn){
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    document.querySelectorAll('.mockup-switcher button').forEach(b=>b.classList.remove('active'));
-    if(btn) btn.classList.add('active');
+  const BACKEND_URL = "https://fnc-system-com.onrender.com/api";
+
+  function escapeHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+  function authHeaders(){
+    return { 'Authorization': 'Bearer ' + (localStorage.getItem('fnc_token')||'') };
+  }
+  function setUserUI(name, roleLabel){
+    document.querySelectorAll('.sb-user .name').forEach(el=>el.textContent = name);
+    document.querySelectorAll('.sb-user .role').forEach(el=>el.textContent = roleLabel);
+    document.querySelectorAll('.sb-user .avatar').forEach(el=>el.textContent = (name||'').trim().charAt(0) || 'U');
+  }
+
+  function enterApp(role, name, centerName){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(role === 'admin' ? 'app-admin' : 'app').classList.add('active');
+    setUserUI(name || '사용자', centerName || (role==='admin' ? '전체 센터 관리 권한' : '일반'));
+    if(role === 'admin') loadUsers();
+  }
+
+  function doLogout(){
+    localStorage.removeItem('fnc_token');
+    localStorage.removeItem('fnc_name');
+    localStorage.removeItem('fnc_role');
+    localStorage.removeItem('fnc_center');
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('login').classList.add('active');
+  }
+
+  async function doLogin(){
+    const idEl = document.getElementById('loginId');
+    const pwEl = document.getElementById('loginPw');
+    const errEl = document.getElementById('loginErr');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    const id = idEl.value.trim();
+    const password = pwEl.value;
+    if(!id || !password){
+      errEl.textContent = '센터 ID와 비밀번호를 입력하세요.';
+      errEl.style.display = 'block';
+      return;
+    }
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '로그인 중...';
+    try{
+      const res = await fetch(BACKEND_URL + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){
+        errEl.textContent = data.error || '센터 ID 또는 비밀번호가 올바르지 않습니다.';
+        errEl.style.display = 'block';
+        return;
+      }
+      localStorage.setItem('fnc_token', data.token);
+      localStorage.setItem('fnc_name', data.name || '');
+      localStorage.setItem('fnc_role', data.role || 'general');
+      localStorage.setItem('fnc_center', data.centerName || '');
+      enterApp(data.role, data.name, data.centerName);
+    }catch(e){
+      errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.';
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+
+  // 계정관리 (관리자 전용)
+  async function loadUsers(){
+    const tbody = document.getElementById('accTbody');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5">불러오는 중...</td></tr>';
+    try{
+      const res = await fetch(BACKEND_URL + '/users', { headers: authHeaders() });
+      if(res.status === 401 || res.status === 403){ doLogout(); return; }
+      const list = await res.json();
+      if(!Array.isArray(list) || list.length === 0){
+        tbody.innerHTML = '<tr><td colspan="5">등록된 계정이 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(u => `
+        <tr>
+          <td>${escapeHtml(u.id)}</td>
+          <td>${escapeHtml(u.name)}</td>
+          <td>${escapeHtml(u.centerName)}</td>
+          <td>${u.role === 'admin' ? '관리자' : '일반'}</td>
+          <td class="acc-row-actions">
+            <button onclick="editAccount('${u.id}')">수정</button>
+            <button onclick="deleteAccount('${u.id}')">삭제</button>
+          </td>
+        </tr>`).join('');
+    }catch(e){
+      tbody.innerHTML = '<tr><td colspan="5">목록을 불러오지 못했습니다.</td></tr>';
+    }
+  }
+
+  function openAccForm(){
+    document.getElementById('accEditId').value = '';
+    document.getElementById('accId').value = '';
+    document.getElementById('accId').disabled = false;
+    document.getElementById('accName').value = '';
+    document.getElementById('accCenter').value = '';
+    document.getElementById('accRole').value = 'general';
+    document.getElementById('accPw').value = '';
+    document.getElementById('accPwHint').textContent = '(필수)';
+    document.getElementById('accErr').style.display = 'none';
+    document.getElementById('accFormWrap').style.display = 'block';
+  }
+
+  function closeAccForm(){
+    document.getElementById('accFormWrap').style.display = 'none';
+  }
+
+  async function editAccount(id){
+    try{
+      const res = await fetch(BACKEND_URL + '/users', { headers: authHeaders() });
+      const list = await res.json();
+      const u = list.find(x => x.id === id);
+      if(!u) return;
+      document.getElementById('accEditId').value = u.id;
+      document.getElementById('accId').value = u.id;
+      document.getElementById('accId').disabled = true;
+      document.getElementById('accName').value = u.name || '';
+      document.getElementById('accCenter').value = u.centerName || '';
+      document.getElementById('accRole').value = u.role || 'general';
+      document.getElementById('accPw').value = '';
+      document.getElementById('accPwHint').textContent = '(변경 시에만 입력)';
+      document.getElementById('accErr').style.display = 'none';
+      document.getElementById('accFormWrap').style.display = 'block';
+    }catch(e){}
+  }
+
+  async function saveAccount(){
+    const editId = document.getElementById('accEditId').value;
+    const id = document.getElementById('accId').value.trim();
+    const name = document.getElementById('accName').value.trim();
+    const centerName = document.getElementById('accCenter').value.trim();
+    const role = document.getElementById('accRole').value;
+    const password = document.getElementById('accPw').value;
+    const errEl = document.getElementById('accErr');
+    errEl.style.display = 'none';
+    if(!id || !name){
+      errEl.textContent = '센터 ID와 이름은 필수입니다.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if(!editId && !password){
+      errEl.textContent = '새 계정은 비밀번호가 필요합니다.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const body = { id, name, centerName, role };
+    if(password) body.password = password;
+    try{
+      const res = await fetch(BACKEND_URL + '/users' + (editId ? ('/' + encodeURIComponent(editId)) : ''), {
+        method: editId ? 'PUT' : 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){
+        errEl.textContent = data.error || '저장에 실패했습니다.';
+        errEl.style.display = 'block';
+        return;
+      }
+      closeAccForm();
+      loadUsers();
+    }catch(e){
+      errEl.textContent = '서버에 연결할 수 없습니다.';
+      errEl.style.display = 'block';
+    }
+  }
+
+  async function deleteAccount(id){
+    if(!confirm(id + ' 계정을 삭제하시겠습니까?')) return;
+    try{
+      const res = await fetch(BACKEND_URL + '/users/' + encodeURIComponent(id), {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){ alert(data.error || '삭제에 실패했습니다.'); return; }
+      loadUsers();
+    }catch(e){ alert('서버에 연결할 수 없습니다.'); }
+  }
+
+  // 페이지 로드시 자동 로그인 유지
+  (function initAuth(){
+    const token = localStorage.getItem('fnc_token');
+    const role = localStorage.getItem('fnc_role');
+    const name = localStorage.getItem('fnc_name');
+    const center = localStorage.getItem('fnc_center');
+    if(token && role){
+      enterApp(role, name, center);
+    }
+  })();
 
   function switchPanel(ev, panelId){
     ev.preventDefault();
