@@ -212,6 +212,23 @@
   .board-card .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
   .board-card .card-head h3{font-size:14px;margin:0;color:var(--ink);}
   .board-card .card-head .new-btn{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
+
+  /* 내 메모장 / 오늘 할 일 (계정별 개인 공간) */
+  .my-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start;}
+  .my-card .card-head .hd-title p{font-size:11px;color:var(--ink-faint);margin:2px 0 0;}
+  .my-card .memo-area{display:block;width:100%;min-height:190px;border:none;resize:vertical;padding:14px 18px;font:inherit;font-size:13px;line-height:1.6;color:var(--ink);background:transparent;outline:none;}
+  .my-card .memo-foot{padding:6px 18px 10px;font-size:11px;color:var(--ink-faint);border-top:1px solid var(--surface-2);}
+  .todo-add{display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--surface-2);}
+  .todo-add input{flex:1;min-width:0;border:1px solid var(--border);border-radius:7px;padding:7px 10px;font:inherit;font-size:12.5px;background:var(--surface);color:var(--ink);}
+  .todo-add button{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:0 14px;font-size:12px;font-weight:700;cursor:pointer;}
+  .todo-list{list-style:none;margin:0;padding:4px 6px 8px;max-height:260px;overflow:auto;}
+  .todo-list li{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12.5px;border-radius:7px;}
+  .todo-list li:hover{background:var(--surface-2);}
+  .todo-list li input[type=checkbox]{width:16px;height:16px;flex-shrink:0;cursor:pointer;accent-color:var(--navy);}
+  .todo-list li .t{flex:1;min-width:0;word-break:break-all;}
+  .todo-list li.done .t{text-decoration:line-through;color:var(--ink-faint);}
+  .pin-mark{font-size:9.5px;font-weight:800;color:var(--ink-faint);background:var(--surface-2);border-radius:5px;padding:2px 6px;margin-left:8px;flex-shrink:0;}
+  @media (max-width:900px){ .my-layout{grid-template-columns:1fr;} }
   .board-list{list-style:none;margin:0;padding:0;}
   .board-list li{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--surface-2);font-size:12.5px;}
   .board-list li:last-child{border-bottom:none;}
@@ -376,6 +393,19 @@
           <ul class="quicklink-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
         </div>
       </div>
+
+      <div class="my-layout">
+        <div class="board-card my-card">
+          <div class="card-head"><div class="hd-title"><h3>내 메모장</h3><p>내 아이디에만 보이는 개인 메모 · 자동 저장</p></div></div>
+          <textarea class="memo-area" maxlength="20000" placeholder="회의 내용, 인수인계, 기억할 내용을 자유롭게 적어두세요."></textarea>
+          <div class="memo-foot"><span class="memo-status">불러오는 중...</span></div>
+        </div>
+        <div class="board-card my-card">
+          <div class="card-head"><div class="hd-title"><h3>오늘 할 일</h3><p>내 아이디에만 보이는 할 일 목록 · <span class="todo-count">0</span>건 남음</p></div></div>
+          <div class="todo-add"><input type="text" class="todo-input" maxlength="300" placeholder="할 일을 입력하고 Enter" /><button type="button" class="todo-add-btn">추가</button></div>
+          <ul class="todo-list"><li style="color:var(--ink-faint);">불러오는 중...</li></ul>
+        </div>
+      </div>
     </div>
 
     <!-- 일일보고현황 -->
@@ -517,6 +547,19 @@
         <div class="board-card quicklink-card">
           <div class="card-head"><div class="hd-title"><h3>자주쓰는 사이트</h3><p>바로가기 링크 모음</p></div><button class="new-btn" onclick="openLinkModal()">+ 추가</button></div>
           <ul class="quicklink-list"><li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">불러오는 중...</li></ul>
+        </div>
+      </div>
+
+      <div class="my-layout">
+        <div class="board-card my-card">
+          <div class="card-head"><div class="hd-title"><h3>내 메모장</h3><p>내 아이디에만 보이는 개인 메모 · 자동 저장</p></div></div>
+          <textarea class="memo-area" maxlength="20000" placeholder="회의 내용, 인수인계, 기억할 내용을 자유롭게 적어두세요."></textarea>
+          <div class="memo-foot"><span class="memo-status">불러오는 중...</span></div>
+        </div>
+        <div class="board-card my-card">
+          <div class="card-head"><div class="hd-title"><h3>오늘 할 일</h3><p>내 아이디에만 보이는 할 일 목록 · <span class="todo-count">0</span>건 남음</p></div></div>
+          <div class="todo-add"><input type="text" class="todo-input" maxlength="300" placeholder="할 일을 입력하고 Enter" /><button type="button" class="todo-add-btn">추가</button></div>
+          <ul class="todo-list"><li style="color:var(--ink-faint);">불러오는 중...</li></ul>
         </div>
       </div>
     </div>
@@ -666,6 +709,8 @@
     setUserUI(name || '사용자', centerName || (role==='admin' ? '전체 센터 관리 권한' : '일반'));
     loadPosts();
     loadLinks();
+    loadMemo();
+    loadTodos();
     loadDailyEmbed();
     if(role === 'admin') loadUsers();
   }
@@ -835,6 +880,104 @@
     }catch(e){ alert('서버에 연결할 수 없습니다.'); }
   }
 
+
+  // ---------- 내 메모장 / 오늘 할 일 (계정별) ----------
+  let memoTimer = null, memoReady = false;
+  function setMemoStatus(t){ document.querySelectorAll('.memo-status').forEach(el => el.textContent = t); }
+  async function loadMemo(){
+    memoReady = false;
+    try{
+      const res = await fetch(BACKEND_URL + '/memo', { headers: authHeaders() });
+      if(res.status === 401){ doLogout(); return; }
+      const data = await res.json();
+      document.querySelectorAll('.memo-area').forEach(el => { el.value = data.content || ''; });
+      memoReady = true;
+      setMemoStatus(data.updatedAt ? '마지막 저장 ' + formatDate(data.updatedAt) : '아직 작성한 메모가 없습니다');
+    }catch(e){ setMemoStatus('메모를 불러오지 못했습니다.'); }
+  }
+  async function saveMemo(content){
+    setMemoStatus('저장 중...');
+    try{
+      const res = await fetch(BACKEND_URL + '/memo', {
+        method: 'PUT',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ content })
+      });
+      const data = await res.json();
+      setMemoStatus(res.ok && data.ok ? '저장됨 ✓' : (data.error || '저장에 실패했습니다.'));
+    }catch(e){ setMemoStatus('서버에 연결할 수 없어 저장하지 못했습니다.'); }
+  }
+  function setupMemo(){
+    document.querySelectorAll('.memo-area').forEach(el => {
+      el.addEventListener('input', () => {
+        if(!memoReady) return;
+        // 보이는 쪽/안 보이는 쪽 textarea 값을 맞추고, 입력이 멈추면 자동 저장
+        document.querySelectorAll('.memo-area').forEach(o => { if(o !== el) o.value = el.value; });
+        setMemoStatus('입력 중...');
+        clearTimeout(memoTimer);
+        memoTimer = setTimeout(() => saveMemo(el.value), 800);
+      });
+    });
+  }
+
+  async function loadTodos(){
+    const lists = document.querySelectorAll('.todo-list');
+    try{
+      const res = await fetch(BACKEND_URL + '/todos', { headers: authHeaders() });
+      if(res.status === 401){ doLogout(); return; }
+      const todos = await res.json();
+      const left = todos.filter(t => !t.done).length;
+      document.querySelectorAll('.todo-count').forEach(el => el.textContent = left);
+      const html = todos.length ? todos.map(t => `
+        <li class="${t.done ? 'done' : ''}">
+          <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTodo(${t.id}, this.checked)" />
+          <span class="t">${escapeHtml(t.text)}</span>
+          <button class="del-x" title="삭제" onclick="deleteTodo(${t.id})">×</button>
+        </li>`).join('') : '<li style="color:var(--ink-faint);">등록된 할 일이 없습니다. 위 입력칸에 적고 Enter를 누르세요.</li>';
+      lists.forEach(el => { el.innerHTML = html; });
+    }catch(e){
+      lists.forEach(el => { el.innerHTML = '<li style="color:var(--ink-faint);">할 일을 불러오지 못했습니다.</li>'; });
+    }
+  }
+  async function addTodo(fromEl){
+    const input = fromEl.closest('.my-card').querySelector('.todo-input');
+    const text = input.value.trim();
+    if(!text) return;
+    try{
+      const res = await fetch(BACKEND_URL + '/todos', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){ alert(data.error || '등록하지 못했습니다.'); return; }
+      document.querySelectorAll('.todo-input').forEach(i => i.value = '');
+      loadTodos();
+    }catch(e){ alert('서버에 연결할 수 없습니다.'); }
+  }
+  async function toggleTodo(id, done){
+    try{
+      await fetch(BACKEND_URL + '/todos/' + id, {
+        method: 'PUT',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ done })
+      });
+    }catch(e){}
+    loadTodos();
+  }
+  async function deleteTodo(id){
+    try{ await fetch(BACKEND_URL + '/todos/' + id, { method: 'DELETE', headers: authHeaders() }); }catch(e){}
+    loadTodos();
+  }
+  function setupTodoInputs(){
+    document.querySelectorAll('.todo-input').forEach(el => el.addEventListener('keydown', e => {
+      if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); addTodo(el); }
+    }));
+    document.querySelectorAll('.todo-add-btn').forEach(el => el.addEventListener('click', () => addTodo(el)));
+  }
+  setupMemo();
+  setupTodoInputs();
+
   // ---------- 자주쓰는 사이트 ----------
   function renderLinksInto(container, links){
     if(!links || links.length === 0){
@@ -848,7 +991,7 @@
           <div class="qicon">${escapeHtml((l.name || '?').charAt(0))}</div>
           <div class="qtxt"><div class="name">${escapeHtml(l.name)}</div><div class="desc">${escapeHtml(l.desc || '')}</div></div>
         </a>
-        <button class="del-x" title="삭제" onclick="deleteLink(${l.id})">×</button>
+        ${l.pinned ? '<span class="pin-mark" title="기본 사이트 (삭제 불가)">기본</span>' : `<button class="del-x" title="삭제" onclick="deleteLink(${l.id})">×</button>`}
       </li>`).join('');
     setupLinkDrag(container);
   }
@@ -975,6 +1118,9 @@
     localStorage.removeItem('fnc_role');
     localStorage.removeItem('fnc_center');
     localStorage.removeItem('fnc_id');
+    memoReady = false;
+    document.querySelectorAll('.memo-area').forEach(el => { el.value = ''; }); // 다음 로그인 사람에게 이전 메모가 남지 않게
+    document.querySelectorAll('.todo-list').forEach(el => { el.innerHTML = ''; });
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById('login').classList.add('active');
   }
