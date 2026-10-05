@@ -74,6 +74,24 @@ db.exec(`
 `);
 // 예전 DB(sortOrder 컬럼 없이 만들어진 links 테이블)를 위한 안전한 컬럼 추가 (이미 있으면 무시)
 try { db.exec("ALTER TABLE links ADD COLUMN sortOrder INTEGER"); } catch (e) { /* 이미 존재함 */ }
+try { db.exec("ALTER TABLE links ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"); } catch (e) { /* 이미 존재함 */ }
+// 계정별 개인 메모장 / 해야할일 (본인 계정만 읽고 씀)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS memos (
+    userId TEXT PRIMARY KEY,
+    content TEXT NOT NULL DEFAULT '',
+    updatedAt TEXT NOT NULL
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId TEXT NOT NULL,
+    text TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL
+  )
+`);
 // 일일 마감보고 (센터 일일 마감보고 툴 - 기존 대시보드를 대체)
 db.exec(`
   CREATE TABLE IF NOT EXISTS daily_entries (
@@ -127,9 +145,25 @@ const stmt = {
   deletePost: db.prepare("DELETE FROM posts WHERE id = ?"),
 
   countLinks: db.prepare("SELECT COUNT(*) AS c FROM links"),
-  insertLink: db.prepare(`INSERT INTO links (name, desc, url, sortOrder, createdAt) VALUES (?, ?, ?, ?, ?)`),
-  listLinks: db.prepare("SELECT id, name, desc, url, sortOrder, createdAt FROM links ORDER BY sortOrder ASC, id ASC"),
+  insertLink: db.prepare(`INSERT INTO links (name, desc, url, sortOrder, pinned, createdAt) VALUES (?, ?, ?, ?, ?, ?)`),
+  listLinks: db.prepare("SELECT id, name, desc, url, sortOrder, pinned, createdAt FROM links ORDER BY sortOrder ASC, id ASC"),
+  getLinkById: db.prepare("SELECT * FROM links WHERE id = ?"),
+  getLinkByUrl: db.prepare("SELECT * FROM links WHERE url = ?"),
+  setLinkPinned: db.prepare("UPDATE links SET pinned = 1 WHERE id = ?"),
+  deleteSampleLinks: db.prepare("DELETE FROM links WHERE url = 'https://example.com' AND pinned = 0"),
   deleteLink: db.prepare("DELETE FROM links WHERE id = ?"),
+
+  getMemo: db.prepare("SELECT content, updatedAt FROM memos WHERE userId = ?"),
+  upsertMemo: db.prepare(`
+    INSERT INTO memos (userId, content, updatedAt) VALUES (@userId, @content, @updatedAt)
+    ON CONFLICT(userId) DO UPDATE SET content=excluded.content, updatedAt=excluded.updatedAt
+  `),
+  listTodos: db.prepare("SELECT id, text, done, createdAt FROM todos WHERE userId = ? ORDER BY done ASC, id ASC LIMIT 300"),
+  countTodos: db.prepare("SELECT COUNT(*) AS c FROM todos WHERE userId = ?"),
+  insertTodo: db.prepare("INSERT INTO todos (userId, text, done, createdAt) VALUES (?, ?, 0, ?)"),
+  getTodo: db.prepare("SELECT * FROM todos WHERE id = ?"),
+  setTodoDone: db.prepare("UPDATE todos SET done = ? WHERE id = ?"),
+  deleteTodo: db.prepare("DELETE FROM todos WHERE id = ?"),
   maxLinkOrder: db.prepare("SELECT COALESCE(MAX(sortOrder), 0) AS m FROM links"),
   updateLinkOrder: db.prepare("UPDATE links SET sortOrder = ? WHERE id = ?"),
   nullOrderLinks: db.prepare("SELECT id FROM links WHERE sortOrder IS NULL ORDER BY id ASC"),
@@ -195,20 +229,27 @@ function seedBoard() {
       stmt.insertPost.run(category, title, "admin", "관리자", now, null, null, null);
     });
   }
-  if (stmt.countLinks.get().c === 0) {
-    const now = new Date().toISOString();
-    const samples = [
-      ["아워홈 WMS", "물류관리시스템", "https://example.com"],
-      ["QR 출퇴근 시스템", "직원 출근체크", "https://example.com"],
-      ["채용 관리", "지원자 현황", "https://example.com"],
-      ["전자결재", "그룹웨어", "https://example.com"],
-    ];
-    samples.forEach(([name, desc, url], i) => {
-      stmt.insertLink.run(name, desc, url, i + 1, now);
-    });
-  }
 }
 seedBoard();
+
+// 자주쓰는 사이트 기본(고정) 2개 - 삭제 불가. 없으면 만들고, 이미 같은 주소가 있으면 고정만 겁니다.
+const DEFAULT_LINKS = [
+  { name: "아워홈 WMS", desc: "OurHome Logistics (OHLOG)", url: "http://osis.ourhome.co.kr/ohlog/LinkedLogin.jsp" },
+  { name: "그룹웨어", desc: "아워홈 그룹웨어", url: "http://ep.ourhome.co.kr/loginForm.do" },
+];
+function ensureDefaultLinks() {
+  stmt.deleteSampleLinks.run(); // 예전 예시(example.com) 링크 정리
+  DEFAULT_LINKS.forEach((d) => {
+    const found = stmt.getLinkByUrl.get(d.url);
+    if (found) {
+      if (!found.pinned) stmt.setLinkPinned.run(found.id);
+    } else {
+      const nextOrder = stmt.maxLinkOrder.get().m + 1;
+      stmt.insertLink.run(d.name, d.desc, d.url, nextOrder, 1, new Date().toISOString());
+    }
+  });
+}
+ensureDefaultLinks();
 
 // 예전 데이터(순서값 없음)에 순서를 한 번만 채워줍니다.
 function backfillLinkOrder() {
@@ -391,6 +432,50 @@ app.delete("/api/posts/:id", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- 내 메모장 / 해야할일 (로그인한 본인 것만) ----------
+app.get("/api/memo", requireAuth, (req, res) => {
+  const row = stmt.getMemo.get(req.user.id);
+  res.json({ content: row ? row.content : "", updatedAt: row ? row.updatedAt : null });
+});
+
+app.put("/api/memo", requireAuth, (req, res) => {
+  const { content } = req.body || {};
+  if (typeof content !== "string" || content.length > 20000) {
+    return res.status(400).json({ ok: false, error: "메모는 2만자 이내 텍스트여야 합니다." });
+  }
+  stmt.upsertMemo.run({ userId: req.user.id, content, updatedAt: new Date().toISOString() });
+  res.json({ ok: true });
+});
+
+app.get("/api/todos", requireAuth, (req, res) => {
+  res.json(stmt.listTodos.all(req.user.id));
+});
+
+app.post("/api/todos", requireAuth, (req, res) => {
+  const text = String((req.body || {}).text || "").trim();
+  if (!text) return res.status(400).json({ ok: false, error: "할 일 내용을 입력하세요." });
+  if (text.length > 300) return res.status(400).json({ ok: false, error: "할 일은 300자 이내로 입력하세요." });
+  if (stmt.countTodos.get(req.user.id).c >= 300) {
+    return res.status(400).json({ ok: false, error: "할 일은 최대 300개까지 등록할 수 있습니다." });
+  }
+  stmt.insertTodo.run(req.user.id, text, new Date().toISOString());
+  res.json({ ok: true });
+});
+
+app.put("/api/todos/:id", requireAuth, (req, res) => {
+  const todo = stmt.getTodo.get(req.params.id);
+  if (!todo || todo.userId !== req.user.id) return res.status(404).json({ ok: false, error: "항목을 찾을 수 없습니다." });
+  stmt.setTodoDone.run((req.body || {}).done ? 1 : 0, todo.id);
+  res.json({ ok: true });
+});
+
+app.delete("/api/todos/:id", requireAuth, (req, res) => {
+  const todo = stmt.getTodo.get(req.params.id);
+  if (!todo || todo.userId !== req.user.id) return res.status(404).json({ ok: false, error: "항목을 찾을 수 없습니다." });
+  stmt.deleteTodo.run(todo.id);
+  res.json({ ok: true });
+});
+
 // ---------- 자주쓰는 사이트 ----------
 app.get("/api/links", requireAuth, (req, res) => {
   res.json(stmt.listLinks.all());
@@ -402,7 +487,7 @@ app.post("/api/links", requireAuth, (req, res) => {
     return res.status(400).json({ ok: false, error: "사이트 이름과 URL은 필수입니다." });
   }
   const nextOrder = stmt.maxLinkOrder.get().m + 1;
-  stmt.insertLink.run(name, desc || "", url, nextOrder, new Date().toISOString());
+  stmt.insertLink.run(name, desc || "", url, nextOrder, 0, new Date().toISOString());
   res.json({ ok: true });
 });
 
@@ -417,6 +502,10 @@ app.put("/api/links/reorder", requireAuth, (req, res) => {
 });
 
 app.delete("/api/links/:id", requireAuth, (req, res) => {
+  const link = stmt.getLinkById.get(req.params.id);
+  if (link && link.pinned) {
+    return res.status(403).json({ ok: false, error: "기본(고정) 사이트는 삭제할 수 없습니다." });
+  }
   stmt.deleteLink.run(req.params.id);
   res.json({ ok: true });
 });
