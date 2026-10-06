@@ -75,6 +75,7 @@ db.exec(`
 // 예전 DB(sortOrder 컬럼 없이 만들어진 links 테이블)를 위한 안전한 컬럼 추가 (이미 있으면 무시)
 try { db.exec("ALTER TABLE links ADD COLUMN sortOrder INTEGER"); } catch (e) { /* 이미 존재함 */ }
 try { db.exec("ALTER TABLE links ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"); } catch (e) { /* 이미 존재함 */ }
+try { db.exec("ALTER TABLE links ADD COLUMN defaultKey TEXT"); } catch (e) { /* 이미 존재함 */ }
 // 계정별 개인 메모장 / 해야할일 (본인 계정만 읽고 씀)
 db.exec(`
   CREATE TABLE IF NOT EXISTS memos (
@@ -150,6 +151,10 @@ const stmt = {
   getLinkById: db.prepare("SELECT * FROM links WHERE id = ?"),
   getLinkByUrl: db.prepare("SELECT * FROM links WHERE url = ?"),
   setLinkPinned: db.prepare("UPDATE links SET pinned = 1 WHERE id = ?"),
+  getLinkByKey: db.prepare("SELECT * FROM links WHERE defaultKey = ?"),
+  listLegacyPinnedLinks: db.prepare("SELECT id FROM links WHERE pinned = 1 AND defaultKey IS NULL ORDER BY id ASC"),
+  setLinkKey: db.prepare("UPDATE links SET defaultKey = ?, pinned = 1 WHERE id = ?"),
+  updateLink: db.prepare("UPDATE links SET name = ?, desc = ?, url = ? WHERE id = ?"),
   deleteSampleLinks: db.prepare("DELETE FROM links WHERE url = 'https://example.com' AND pinned = 0"),
   deleteLink: db.prepare("DELETE FROM links WHERE id = ?"),
 
@@ -232,20 +237,30 @@ function seedBoard() {
 }
 seedBoard();
 
-// 자주쓰는 사이트 기본(고정) 2개 - 삭제 불가. 없으면 만들고, 이미 같은 주소가 있으면 고정만 겁니다.
+// 자주쓰는 사이트 기본(고정) 목록 - 삭제 불가, 이름/설명/주소는 화면에서 수정 가능.
+// key로 구분하기 때문에 주소를 수정해도 다시 만들어지지 않고, 목록에 새 기본 사이트를 추가하면 다음 시작 때 자동으로 들어갑니다.
 const DEFAULT_LINKS = [
-  { name: "아워홈 WMS", desc: "OurHome Logistics (OHLOG)", url: "http://osis.ourhome.co.kr/ohlog/LinkedLogin.jsp" },
-  { name: "그룹웨어", desc: "아워홈 그룹웨어", url: "http://ep.ourhome.co.kr/loginForm.do" },
+  { key: "ohlog", name: "아워홈 WMS", desc: "OurHome Logistics (OHLOG)", url: "http://osis.ourhome.co.kr/ohlog/LinkedLogin.jsp" },
+  { key: "groupware", name: "그룹웨어", desc: "아워홈 그룹웨어", url: "http://ep.ourhome.co.kr/loginForm.do" },
+  { key: "safety", name: "FNC 안전교육", desc: "FNC 안전교육", url: "https://github.com/tjrrmssl4205-bot/fnc-system.com/blob/main/backend/server.js" },
 ];
 function ensureDefaultLinks() {
   stmt.deleteSampleLinks.run(); // 예전 예시(example.com) 링크 정리
+  // 키 없이 만들어졌던 예전 고정 사이트(WMS, 그룹웨어)에 키를 붙입니다. (이미 주소를 수정했어도 중복 생성 방지)
+  const legacyKeys = ["ohlog", "groupware"];
+  stmt.listLegacyPinnedLinks.all().slice(0, legacyKeys.length).forEach((row, i) => {
+    if (!stmt.getLinkByKey.get(legacyKeys[i])) stmt.setLinkKey.run(legacyKeys[i], row.id);
+  });
   DEFAULT_LINKS.forEach((d) => {
-    const found = stmt.getLinkByUrl.get(d.url);
-    if (found) {
-      if (!found.pinned) stmt.setLinkPinned.run(found.id);
+    if (stmt.getLinkByKey.get(d.key)) return;
+    const sameUrl = stmt.getLinkByUrl.get(d.url);
+    if (sameUrl) {
+      stmt.setLinkKey.run(d.key, sameUrl.id);
     } else {
       const nextOrder = stmt.maxLinkOrder.get().m + 1;
       stmt.insertLink.run(d.name, d.desc, d.url, nextOrder, 1, new Date().toISOString());
+      const added = stmt.getLinkByUrl.get(d.url);
+      if (added) stmt.setLinkKey.run(d.key, added.id);
     }
   });
 }
@@ -488,6 +503,18 @@ app.post("/api/links", requireAuth, (req, res) => {
   }
   const nextOrder = stmt.maxLinkOrder.get().m + 1;
   stmt.insertLink.run(name, desc || "", url, nextOrder, 0, new Date().toISOString());
+  res.json({ ok: true });
+});
+
+// 자주쓰는 사이트 수정 (기본/고정 사이트도 이름·설명·주소 수정 가능, 삭제만 불가)
+app.put("/api/links/:id", requireAuth, (req, res) => {
+  const link = stmt.getLinkById.get(req.params.id);
+  if (!link) return res.status(404).json({ ok: false, error: "사이트를 찾을 수 없습니다." });
+  const { name, desc, url } = req.body || {};
+  if (!name || !url) {
+    return res.status(400).json({ ok: false, error: "사이트 이름과 URL은 필수입니다." });
+  }
+  stmt.updateLink.run(String(name).trim(), String(desc || "").trim(), String(url).trim(), link.id);
   res.json({ ok: true });
 });
 
