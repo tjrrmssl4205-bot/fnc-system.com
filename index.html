@@ -227,6 +227,8 @@
   .todo-list li input[type=checkbox]{width:16px;height:16px;flex-shrink:0;cursor:pointer;accent-color:var(--navy);}
   .todo-list li .t{flex:1;min-width:0;word-break:break-all;}
   .todo-list li.done .t{text-decoration:line-through;color:var(--ink-faint);}
+  .edit-x{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:13px;margin-left:6px;padding:0 2px;line-height:1;}
+  .edit-x:hover{color:var(--navy);}
   .pin-mark{font-size:9.5px;font-weight:800;color:var(--ink-faint);background:var(--surface-2);border-radius:5px;padding:2px 6px;margin-left:8px;flex-shrink:0;}
   @media (max-width:900px){ .my-layout{grid-template-columns:1fr;} }
   .board-list{list-style:none;margin:0;padding:0;}
@@ -676,13 +678,13 @@
 <!-- 공용 모달: 사이트 추가 -->
 <div id="linkModalOverlay" class="modal-overlay">
   <div class="modal-box">
-    <h3>자주쓰는 사이트 추가</h3>
+    <h3 id="linkModalTitle">자주쓰는 사이트 추가</h3><input type="hidden" id="linkEditId" value="" />
     <div class="field"><label>사이트 이름</label><input type="text" id="linkName" placeholder="예: 아워홈 WMS" /></div>
     <div class="field"><label>설명</label><input type="text" id="linkDesc" placeholder="예: 물류관리시스템" /></div>
     <div class="field"><label>URL</label><input type="text" id="linkUrl" placeholder="https://..." /></div>
     <div id="linkErr" class="login-err" style="display:none;"></div>
     <div class="acc-form-actions">
-      <button class="acc-save-btn" onclick="saveLink()">등록</button>
+      <button class="acc-save-btn" id="linkSaveBtn" onclick="saveLink()">등록</button>
       <button class="acc-cancel-btn" onclick="closeLinkModal()">취소</button>
     </div>
   </div>
@@ -991,16 +993,19 @@
           <div class="qicon">${escapeHtml((l.name || '?').charAt(0))}</div>
           <div class="qtxt"><div class="name">${escapeHtml(l.name)}</div><div class="desc">${escapeHtml(l.desc || '')}</div></div>
         </a>
-        ${l.pinned ? '<span class="pin-mark" title="기본 사이트 (삭제 불가)">기본</span>' : `<button class="del-x" title="삭제" onclick="deleteLink(${l.id})">×</button>`}
+        <button class="edit-x" title="수정" onclick="openLinkModal(${l.id})">✎</button>
+        ${l.pinned ? '<span class="pin-mark" title="기본 사이트 (수정만 가능, 삭제 불가)">기본</span>' : `<button class="del-x" title="삭제" onclick="deleteLink(${l.id})">×</button>`}
       </li>`).join('');
     setupLinkDrag(container);
   }
+  let linksCache = [];
   async function loadLinks(){
     const containers = document.querySelectorAll('.quicklink-list');
     try{
       const res = await fetch(BACKEND_URL + '/links', { headers: authHeaders() });
       if(res.status === 401){ doLogout(); return; }
       const links = await res.json();
+      linksCache = Array.isArray(links) ? links : [];
       containers.forEach(el => renderLinksInto(el, links));
     }catch(e){
       containers.forEach(el => { el.innerHTML = '<li style="padding:14px;color:var(--ink-faint);font-size:12.5px;">사이트 목록을 불러오지 못했습니다.</li>'; });
@@ -1061,10 +1066,14 @@
       else loadLinks(); // 다른 화면(사용자/관리자)에도 새 순서 반영
     }catch(e){ loadLinks(); }
   }
-  function openLinkModal(){
-    document.getElementById('linkName').value = '';
-    document.getElementById('linkDesc').value = '';
-    document.getElementById('linkUrl').value = '';
+  function openLinkModal(editId){
+    const l = editId ? linksCache.find(x => x.id === editId) : null;
+    document.getElementById('linkEditId').value = l ? l.id : '';
+    document.getElementById('linkModalTitle').textContent = l ? '자주쓰는 사이트 수정' : '자주쓰는 사이트 추가';
+    document.getElementById('linkSaveBtn').textContent = l ? '저장' : '등록';
+    document.getElementById('linkName').value = l ? l.name : '';
+    document.getElementById('linkDesc').value = l ? (l.desc || '') : '';
+    document.getElementById('linkUrl').value = l ? l.url : '';
     document.getElementById('linkErr').style.display = 'none';
     document.getElementById('linkModalOverlay').style.display = 'flex';
   }
@@ -1084,8 +1093,9 @@
     }
     if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
     try{
-      const res = await fetch(BACKEND_URL + '/links', {
-        method: 'POST',
+      const editId = document.getElementById('linkEditId').value;
+      const res = await fetch(BACKEND_URL + '/links' + (editId ? '/' + editId : ''), {
+        method: editId ? 'PUT' : 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
         body: JSON.stringify({ name, desc, url })
       });
