@@ -281,10 +281,17 @@ async function seedBoard() {
 const DEFAULT_LINKS = [
   { key: "ohlog", name: "아워홈 WMS", desc: "OurHome Logistics (OHLOG)", url: "http://osis.ourhome.co.kr/ohlog/LinkedLogin.jsp" },
   { key: "groupware", name: "그룹웨어", desc: "아워홈 그룹웨어", url: "http://ep.ourhome.co.kr/loginForm.do" },
-  { key: "safety", name: "FNC 안전교육", desc: "FNC 안전교육", url: "https://github.com/tjrrmssl4205-bot/fnc-system.com/blob/main/backend/server.js" },
+  { key: "safety", name: "FNC 안전교육", desc: "에프앤씨시스템", url: "https://fncsystem.hricube.co.kr/user/v2/Main.do" },
 ];
 async function ensureDefaultLinks() {
   await stmt.deleteSampleLinks.run(); // 예전 예시(example.com) 링크 정리
+  // 잘못 등록됐던 FNC 안전교육 주소(GitHub 소스 페이지)를 올바른 주소로 교정 - 직접 수정한 적 없을 때만 바뀝니다.
+  const wrongSafetyUrl = "https://github.com/tjrrmssl4205-bot/fnc-system.com/blob/main/backend/server.js";
+  const safetyRow = await stmt.getLinkByKey.get("safety");
+  if (safetyRow && safetyRow.url === wrongSafetyUrl) {
+    const fix = DEFAULT_LINKS.find((d) => d.key === "safety");
+    await stmt.updateLink.run(fix.name, fix.desc, fix.url, safetyRow.id);
+  }
   // 키 없이 만들어졌던 예전 고정 사이트(WMS, 그룹웨어)에 키를 붙입니다. (이미 주소를 수정했어도 중복 생성 방지)
   const legacyKeys = ["ohlog", "groupware"];
   const legacyRows = (await stmt.listLegacyPinnedLinks.all()).slice(0, legacyKeys.length);
