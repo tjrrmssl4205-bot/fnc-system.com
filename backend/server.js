@@ -144,6 +144,16 @@ await db.execute(`
     PRIMARY KEY (center, date)
   )
 `);
+// 월별 휴무 계획표 (센터별, 월 단위로 JSON 저장)
+await db.execute(`
+  CREATE TABLE IF NOT EXISTS offday_months (
+    center TEXT NOT NULL,
+    month TEXT NOT NULL,
+    json TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    PRIMARY KEY (center, month)
+  )
+`);
 await db.execute(`
   CREATE TABLE IF NOT EXISTS daily_config (
     id TEXT PRIMARY KEY,
@@ -214,6 +224,14 @@ const stmt = {
   maxLinkOrder: P("SELECT COALESCE(MAX(sortOrder), 0) AS m FROM links"),
   updateLinkOrder: P("UPDATE links SET sortOrder = ? WHERE id = ?"),
   nullOrderLinks: P("SELECT id FROM links WHERE sortOrder IS NULL ORDER BY id ASC"),
+
+  listOffdayMonths: P("SELECT month, json FROM offday_months WHERE center = ? ORDER BY month ASC"),
+  upsertOffday: P(`
+    INSERT INTO offday_months (center, month, json, updatedAt)
+    VALUES (@center, @month, @json, @updatedAt)
+    ON CONFLICT(center, month) DO UPDATE SET json=excluded.json, updatedAt=excluded.updatedAt
+  `),
+  deleteOffday: P("DELETE FROM offday_months WHERE center = ? AND month = ?"),
 
   listDailyEntries: P("SELECT center, date, json, updatedAt FROM daily_entries ORDER BY date ASC"),
   upsertDailyEntry: P(`
@@ -630,6 +648,58 @@ app.post("/api/daily/config", requireAuth, async (req, res) => {
   const json = JSON.stringify(payload);
   const updatedAt = new Date().toISOString();
   await stmt.upsertDailyConfig.run({ json, updatedAt });
+  res.json({ ok: true });
+});
+
+// ---------- 월별 휴무 계획표 (센터별) ----------
+// 관리자는 모든 센터, 일반 계정은 본인 담당 센터(centerId)만 읽고 수정할 수 있습니다.
+async function checkOffdayAccess(req, res, center) {
+  if (req.user.role === "admin") return true;
+  const me = await stmt.getUserById.get(req.user.id);
+  if (!me || !me.centerId) {
+    res.status(403).json({ ok: false, error: "담당 센터가 지정되지 않았습니다. 일일보고현황에서 담당 센터를 먼저 선택하세요." });
+    return false;
+  }
+  if (me.centerId !== center) {
+    res.status(403).json({ ok: false, error: "담당 센터의 휴무표만 볼 수 있습니다." });
+    return false;
+  }
+  return true;
+}
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+app.get("/api/offday/:center", requireAuth, async (req, res) => {
+  if (!(await checkOffdayAccess(req, res, req.params.center))) return;
+  const rows = await stmt.listOffdayMonths.all(req.params.center);
+  res.json(rows.map((r) => {
+    let data = {};
+    try { data = JSON.parse(r.json); } catch (e) { data = {}; }
+    return { month: r.month, data };
+  }));
+});
+
+app.put("/api/offday/:center/:month", requireAuth, async (req, res) => {
+  const { center, month } = req.params;
+  if (!MONTH_RE.test(month)) return res.status(400).json({ ok: false, error: "월 형식이 올바르지 않습니다." });
+  if (!(await checkOffdayAccess(req, res, center))) return;
+  const data = (req.body || {}).data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return res.status(400).json({ ok: false, error: "저장할 데이터가 없습니다." });
+  }
+  // 날짜(1~31) 키와 문자열 값만 허용
+  const clean = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (/^(?:[1-9]|[12]\d|3[01])$/.test(k) && typeof v === "string" && v.trim()) clean[k] = v.slice(0, 500);
+  }
+  await stmt.upsertOffday.run({ center, month, json: JSON.stringify(clean), updatedAt: new Date().toISOString() });
+  res.json({ ok: true });
+});
+
+app.delete("/api/offday/:center/:month", requireAuth, async (req, res) => {
+  const { center, month } = req.params;
+  if (!MONTH_RE.test(month)) return res.status(400).json({ ok: false, error: "월 형식이 올바르지 않습니다." });
+  if (!(await checkOffdayAccess(req, res, center))) return;
+  await stmt.deleteOffday.run(center, month);
   res.json({ ok: true });
 });
 
