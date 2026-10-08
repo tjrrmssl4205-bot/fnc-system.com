@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>월별 휴무 계획표</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg:#FFFFFF; --card:#FFFFFF; --card-alt:#F6F7F9; --border:#DDE2E7;
+    --text:#1A1D21; --sub:#6B7280;
+    --accent:#1D4ED8; --sun:#DC2626; --sat:#7C3AED; --danger:#DC2626;
+    --holiday:#DC2626; --holiday-bg:#FEF2F2;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; background:var(--bg); color:var(--text); padding:22px; }
+  .wrap { max-width: 1200px; margin:0 auto; }
+
+  .page-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:21px; margin:0 0 4px; font-weight:800; }
+  .sub { color:var(--sub); font-size:12px; }
+
+  .top-actions { display:flex; gap:8px; align-items:center; }
+  button { background:#fff; color:var(--text); border:1px solid var(--border); padding:9px 16px; border-radius:7px; font-size:13px; cursor:pointer; font-weight:700; }
+  button:hover { background:var(--card-alt); }
+  button.primary { background:var(--accent); color:#fff; border:none; }
+  button.primary:hover { background:#1743b0; }
+  button.danger { background:#fff; color:var(--danger); border:1px solid var(--danger); }
+  button.danger:hover { background:#FEF2F2; }
+  #status { font-size:12px; color:var(--sub); align-self:center; }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin-bottom:16px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .card h2 { font-size:14px; color:var(--text); margin:0 0 12px; font-weight:800; border-left:4px solid var(--accent); padding-left:8px; }
+
+  .month-row { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+  input[type="month"] { background:#fff; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:8px 10px; font-size:14px; font-weight:700; }
+  .legend { display:flex; align-items:center; gap:6px; margin-left:auto; font-size:11px; color:var(--sub); }
+  .legend .dot { width:8px; height:8px; border-radius:50%; background:var(--holiday); display:inline-block; }
+
+  table.cal { width:100%; border-collapse:collapse; table-layout:fixed; }
+  table.cal th { padding:8px 4px; font-size:14px; font-weight:800; border:1px solid var(--border); background:var(--card-alt); }
+  table.cal th.sun { color: var(--sun); }
+  table.cal th.sat { color: var(--sat); }
+  table.cal td { border:1px solid var(--border); vertical-align:top; height:96px; padding:4px; }
+  table.cal td.empty { background:#FAFAFA; }
+  table.cal td.holiday-cell { background: var(--holiday-bg); }
+  .day-num { font-size:13px; font-weight:800; margin-bottom:1px; }
+  .day-num.sun { color: var(--sun); }
+  .day-num.sat { color: var(--sat); }
+  .day-num.holiday { color: var(--holiday); }
+  .holiday-name { font-size:9px; font-weight:700; color:var(--holiday); line-height:1.2; margin-bottom:2px; overflow-wrap:break-word; }
+  .day-names {
+    width:100%; min-height:56px; border:1px solid transparent; background:transparent;
+    font-size:11.5px; color:var(--text); font-family:inherit; padding:2px;
+    outline:none; overflow-wrap:break-word;
+  }
+  .day-names:focus { border:1px solid var(--accent); background:#F0F5FF; border-radius:4px; }
+  .name-known { color:#1A1D21; }
+  .name-other { color:#5B9BD5; }
+  .name-note { color:#9CA3AF; font-size:10.5px; }
+
+  .log-toolbar { display:flex; gap:10px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap; }
+  table.log { width:100%; border-collapse:collapse; font-size:12px; }
+  table.log th, table.log td { border:1px solid var(--border); padding:7px 8px; text-align:center; }
+  table.log th { background:var(--card-alt); color:var(--sub); }
+  table.log tbody tr:hover { background:#F0F5FF; cursor:pointer; }
+  body.is-embedded { padding:0 4px 24px; }
+  body.is-embedded .page-head > div:first-child { display:none; }
+  body.is-embedded .page-head { justify-content:flex-end; margin-bottom:10px; }
+  #centerBadge { font-size:12px; font-weight:800; color:var(--accent); background:#EFF4FF; border:1px solid #C7D7FE; border-radius:999px; padding:5px 12px; }
+  #centerSelect { background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-size:13px; font-weight:700; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>월별 휴무 계획표</h1>
+      <div class="sub">날짜별 휴무자 기록 · 센터별로 서버에 저장되어 어느 PC에서든 같은 내용이 보입니다</div>
+    </div>
+    <div class="top-actions">
+      <span id="centerBadge" hidden></span>
+      <select id="centerSelect" hidden></select>
+      <button class="primary" id="saveBtn">저장</button>
+      <button id="reloadBtn">불러오기</button>
+      <button class="danger" id="deleteBtn">삭제</button>
+      <button id="saveImageBtn" style="background:#FFC72C;border:none;">🖼 이미지로 저장</button>
+      <span id="status">-</span>
+    </div>
+  </div>
+
+  <div class="card" id="captureRoot">
+    <div class="month-row">
+      <button id="prevMonth">◀</button>
+      <input type="month" id="monthInput">
+      <button id="nextMonth">▶</button>
+      <div class="sub" id="monthTitle" style="margin-left:8px;font-weight:800;font-size:16px;color:var(--text);"></div>
+      <div class="legend"><span class="dot"></span>빨간 날짜 = 공휴일</div>
+    </div>
+    <table class="cal">
+      <thead>
+        <tr>
+          <th class="sun">일요일</th><th>월요일</th><th>화요일</th><th>수요일</th><th>목요일</th><th>금요일</th><th class="sat">토요일</th>
+        </tr>
+      </thead>
+      <tbody id="calBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>월별 기록 로그</h2>
+    <div class="log-toolbar">
+      <button id="exportBtn">📥 현재 월 엑셀 다운로드</button>
+    </div>
+    <table class="log">
+      <thead><tr><th>월</th><th>휴무 인원(연인원)</th><th>기록된 날짜 수</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const WEEKDAY_KO = ['일','월','화','수','목','금','토'];
+
+const KNOWN_NAMES = new Set([
+  '가재훈','구성경','김경민','김민철','김윤석','백경록','백성민','신인교','안송이',
+  '여운희','오영민','이영주','이준','이진영','장원국','최상복','한민우','현병욱',
+  '조종욱','김귀환','최성영','박지호','구본무','이재훈','한준희','유종렬','전원성',
+  '배상인','이진우','최석근','임현주','김지연','진영조','변진혁','차중환','서봉석'
+]);
+
+/* ---------------- 공휴일 정의 ----------------
+   고정 공휴일(매년 동일, 양력): 연도와 무관하게 자동 적용.
+   가변 공휴일(설날/부처님오신날/추석, 음력 기준 + 대체공휴일): 연도별로 실제 날짜가 다르므로
+   확인된 연도(2025~2027)만 정확히 반영. 그 외 연도는 고정 공휴일만 표시됩니다. */
+const FIXED_HOLIDAYS = {
+  '01-01': '신정',
+  '03-01': '삼일절',
+  '05-05': '어린이날',
+  '06-06': '현충일',
+  '08-15': '광복절',
+  '10-03': '개천절',
+  '10-09': '한글날',
+  '12-25': '성탄절',
+};
+const LUNAR_HOLIDAYS = {
+  2025: {
+    '01-27': '임시공휴일', '01-28': '설날 연휴', '01-29': '설날', '01-30': '설날 연휴',
+    '05-05': '부처님오신날', '05-06': '대체공휴일',
+    '10-05': '추석 연휴', '10-06': '추석', '10-07': '추석 연휴', '10-08': '대체공휴일',
+  },
+  2026: {
+    '02-16': '설날 연휴', '02-17': '설날', '02-18': '설날 연휴',
+    '03-02': '삼일절 대체공휴일',
+    '05-24': '부처님오신날', '05-25': '대체공휴일',
+    '08-17': '광복절 대체공휴일',
+    '09-24': '추석 연휴', '09-25': '추석 연휴', '09-26': '추석', '09-27': '추석 연휴',
+    '10-05': '개천절 대체공휴일',
+  },
+  2027: {
+    '02-07': '설날 연휴', '02-08': '설날', '02-09': '설날 연휴',
+    '05-13': '부처님오신날',
+    '09-14': '추석 연휴', '09-15': '추석', '09-16': '추석 연휴',
+  },
+};
+function getHolidayLabel(y, m, d) {
+  const mmdd = pad2(m) + '-' + pad2(d);
+  const labels = [];
+  if (FIXED_HOLIDAYS[mmdd]) labels.push(FIXED_HOLIDAYS[mmdd]);
+  const lunarYear = LUNAR_HOLIDAYS[y];
+  if (lunarYear && lunarYear[mmdd]) labels.push(lunarYear[mmdd]);
+  return labels.length ? labels.join('·') : null;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 이름 목록을 긴 이름부터 확인해서, "한민우반차"처럼 이름 뒤에 메모가
+// 붙어 있어도 이름 부분만 정확히 찾아낼 수 있게 함
+const KNOWN_NAMES_BY_LEN = Array.from(KNOWN_NAMES).sort((a,b) => b.length - a.length);
+
+function colorizeNames(raw) {
+  const tokens = (raw || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (tokens.length === 0) return '';
+  return tokens.map(tok => {
+    if (KNOWN_NAMES.has(tok)) {
+      return `<span class="name-known">${escapeHtml(tok)}</span>`;
+    }
+    // 토큰이 "등록된 이름 + 나머지 메모(반차 등)" 형태인지 확인
+    const matched = KNOWN_NAMES_BY_LEN.find(n => tok.startsWith(n));
+    if (matched) {
+      const suffix = tok.slice(matched.length);
+      return `<span class="name-known">${escapeHtml(matched)}</span>`
+           + `<span class="name-note">${escapeHtml(suffix)}</span>`;
+    }
+    return `<span class="name-other">${escapeHtml(tok)}</span>`;
+  }).join('<span class="name-known">, </span>');
+}
+
+/* ---------- 서버 저장 (센터별) ---------- */
+const BACKEND_URL = 'https://fnc-system-com.onrender.com/api';
+function authHeaders(json){
+  const h = { 'Authorization': 'Bearer ' + (localStorage.getItem('fnc_token')||'') };
+  if (json) h['Content-Type'] = 'application/json';
+  return h;
+}
+function goLogin(){
+  try { localStorage.removeItem('fnc_token'); } catch(e){}
+  location.href = 'index.html';
+}
+async function api(path, opts){
+  opts = opts || {};
+  const res = await fetch(BACKEND_URL + path, { ...opts, headers: authHeaders(!!opts.body) });
+  if (res.status === 401) { goLogin(); throw new Error('auth'); }
+  return res;
+}
+let me = null, centers = [], center = null, pendingCenter = null;
+let cache = {}; // { 'YYYY-MM': { '1': '이름,이름', ... } }  (현재 센터의 저장된 월들)
+const setStatus = (t) => { document.getElementById('status').textContent = t; };
+function centerName(id){ const c = centers.find(x => x.id === id); return c ? c.name : (id || ''); }
+function setEnabled(on){
+  ['saveBtn','reloadBtn','deleteBtn','saveImageBtn','prevMonth','nextMonth','exportBtn'].forEach(id => { const el=document.getElementById(id); if(el) el.disabled = !on; });
+  document.getElementById('monthInput').disabled = !on;
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function currentMonthStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + pad2(d.getMonth()+1);
+}
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); } // m: 1-12
+function firstWeekday(y, m) { return new Date(y, m-1, 1).getDay(); } // 0=Sun
+
+let currentMonth = null;
+let dayData = {}; // { '1': 'name1,name2', ... }
+
+function buildCalendar(monthStr) {
+  const [y, m] = monthStr.split('-').map(Number);
+  const total = daysInMonth(y, m);
+  const startWeekday = firstWeekday(y, m);
+  document.getElementById('monthTitle').textContent = (center ? centerName(center) + ' · ' : '') + `${y}년 ${m}월`;
+
+  const body = document.getElementById('calBody');
+  body.innerHTML = '';
+  let day = 1;
+  const totalCells = Math.ceil((startWeekday + total) / 7) * 7;
+  let row;
+  for (let i = 0; i < totalCells; i++) {
+    if (i % 7 === 0) { row = document.createElement('tr'); body.appendChild(row); }
+    const td = document.createElement('td');
+    if (i < startWeekday || day > total) {
+      td.className = 'empty';
+    } else {
+      const wd = i % 7;
+      const holidayLabel = getHolidayLabel(y, m, day);
+      if (holidayLabel) td.className = 'holiday-cell';
+
+      const numDiv = document.createElement('div');
+      numDiv.className = 'day-num' + (holidayLabel ? ' holiday' : (wd===0?' sun':wd===6?' sat':''));
+      numDiv.textContent = day;
+      td.appendChild(numDiv);
+
+      if (holidayLabel) {
+        const hDiv = document.createElement('div');
+        hDiv.className = 'holiday-name';
+        hDiv.textContent = holidayLabel;
+        td.appendChild(hDiv);
+      }
+
+      const ta = document.createElement('div');
+      ta.className = 'day-names';
+      ta.contentEditable = 'true';
+      ta.dataset.day = day;
+      ta.innerHTML = colorizeNames(dayData[String(day)] || '');
+      ta.addEventListener('focus', e => {
+        e.target.textContent = dayData[e.target.dataset.day] || '';
+        // place cursor at end
+        const range = document.createRange();
+        range.selectNodeContents(e.target);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      });
+      ta.addEventListener('blur', e => {
+        const raw = e.target.textContent;
+        dayData[e.target.dataset.day] = raw;
+        e.target.innerHTML = colorizeNames(raw);
+      });
+      td.appendChild(ta);
+      day++;
+    }
+    row.appendChild(td);
+  }
+}
+
+async function loadMonth(monthStr, silent) {
+  currentMonth = monthStr;
+  document.getElementById('monthInput').value = monthStr;
+  dayData = cache[monthStr] ? JSON.parse(JSON.stringify(cache[monthStr])) : {};
+  buildCalendar(monthStr);
+  if (!silent) setStatus(Object.keys(dayData).length ? '저장된 기록 불러옴' : '신규 입력');
+}
+
+async function saveMonth() {
+  if (!center) return;
+  setStatus('저장 중…');
+  try {
+    const res = await api('/offday/' + encodeURIComponent(center) + '/' + currentMonth, { method: 'PUT', body: JSON.stringify({ data: dayData }) });
+    if (!res.ok) { const j = await res.json().catch(()=>({})); setStatus('저장 실패: ' + (j.error || res.status)); return; }
+    cache[currentMonth] = JSON.parse(JSON.stringify(dayData));
+    setStatus('저장 완료 (' + centerName(center) + ' ' + currentMonth + ')');
+    renderLog();
+  } catch (e) {
+    if (e.message !== 'auth') setStatus('저장 실패: 서버에 연결하지 못했습니다.');
+  }
+}
+
+async function deleteMonth() {
+  if (!center) return;
+  if (!confirm(centerName(center) + ' ' + currentMonth + ' 휴무표를 삭제할까요?')) return;
+  try {
+    const res = await api('/offday/' + encodeURIComponent(center) + '/' + currentMonth, { method: 'DELETE' });
+    if (!res.ok) { setStatus('삭제 실패'); return; }
+    delete cache[currentMonth];
+    dayData = {};
+    buildCalendar(currentMonth);
+    setStatus('삭제됨 (' + currentMonth + ')');
+    renderLog();
+  } catch (e) {
+    if (e.message !== 'auth') setStatus('삭제 실패: 서버에 연결하지 못했습니다.');
+  }
+}
+
+function shiftMonth(monthStr, delta) {
+  const [y, m] = monthStr.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return d.getFullYear() + '-' + pad2(d.getMonth()+1);
+}
+
+function getAllMonths() {
+  return Object.keys(cache).sort().reverse().map(m => ({ month: m, data: cache[m] }));
+}
+
+async function renderLog() {
+  const months = getAllMonths();
+  const body = document.getElementById('logBody');
+  body.innerHTML = months.map(m => {
+    const dateCount = Object.keys(m.data).filter(k => m.data[k] && m.data[k].trim()).length;
+    let peopleCount = 0;
+    Object.values(m.data).forEach(v => {
+      if (v && v.trim()) peopleCount += v.split(',').map(s=>s.trim()).filter(Boolean).length;
+    });
+    return `<tr data-month="${m.month}"><td>${m.month}</td><td>${peopleCount}</td><td>${dateCount}</td></tr>`;
+  }).join('');
+  body.querySelectorAll('tr[data-month]').forEach(tr => {
+    tr.addEventListener('click', () => loadMonth(tr.dataset.month));
+  });
+}
+
+async function exportCurrentMonth() {
+  const [y, m] = currentMonth.split('-').map(Number);
+  const total = daysInMonth(y, m);
+
+  // 1) collect unique employee names in order of first appearance
+  const names = [];
+  for (let d = 1; d <= total; d++) {
+    const raw = dayData[String(d)] || '';
+    raw.split(',').map(s => s.trim()).filter(Boolean).forEach(n => {
+      if (!names.includes(n)) names.push(n);
+    });
+  }
+
+  // 2) build day->set(names) lookup
+  const offByDay = {};
+  for (let d = 1; d <= total; d++) {
+    offByDay[d] = new Set((dayData[String(d)] || '').split(',').map(s => s.trim()).filter(Boolean));
+  }
+
+  // 3) header rows: day numbers, then weekday letters
+  const dayNumRow = ['구분', '성명'];
+  const weekdayRow = ['', ''];
+  for (let d = 1; d <= total; d++) {
+    dayNumRow.push(pad2(d));
+    weekdayRow.push(WEEKDAY_KO[new Date(y, m-1, d).getDay()]);
+  }
+  dayNumRow.push('계');
+  weekdayRow.push('');
+
+  const aoa = [dayNumRow, weekdayRow];
+
+  if (names.length === 0) {
+    aoa.push(['', '(이 달에 기록된 휴무자가 없습니다)']);
+  } else {
+    names.forEach((name, idx) => {
+      const row = [idx+1, name];
+      let count = 0;
+      for (let d = 1; d <= total; d++) {
+        if (offByDay[d].has(name)) { row.push('휴무'); count++; }
+        else { row.push(''); }
+      }
+      row.push(count);
+      aoa.push(row);
+    });
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:5},{wch:12}, ...Array(total).fill({wch:5}), {wch:6}];
+  ws['!merges'] = [
+    { s: {r:0,c:0}, e: {r:1,c:0} },
+    { s: {r:0,c:0+1}, e: {r:1,c:1} },
+    { s: {r:0,c:total+2}, e: {r:1,c:total+2} },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, currentMonth);
+  XLSX.writeFile(wb, `휴무계획표_${centerName(center)}_${currentMonth}.xlsx`);
+}
+
+async function saveAsImage() {
+  const btn = document.getElementById('saveImageBtn');
+  const original = btn.textContent;
+  btn.textContent = '생성 중...';
+  try {
+    const el = document.getElementById('captureRoot');
+    const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
+    const link = document.createElement('a');
+    link.download = `휴무계획표_${centerName(center)}_${currentMonth}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    document.getElementById('status').textContent = '이미지 저장 완료 (' + currentMonth + ')';
+  } catch (e) {
+    alert('이미지 생성에 실패했습니다: ' + (e && e.message ? e.message : String(e)));
+  } finally {
+    btn.textContent = original;
+  }
+}
+
+document.getElementById('monthInput').addEventListener('change', e => loadMonth(e.target.value));
+document.getElementById('prevMonth').addEventListener('click', () => loadMonth(shiftMonth(currentMonth, -1)));
+document.getElementById('nextMonth').addEventListener('click', () => loadMonth(shiftMonth(currentMonth, 1)));
+document.getElementById('saveBtn').addEventListener('click', saveMonth);
+document.getElementById('reloadBtn').addEventListener('click', () => loadMonth(currentMonth));
+document.getElementById('deleteBtn').addEventListener('click', deleteMonth);
+document.getElementById('exportBtn').addEventListener('click', exportCurrentMonth);
+document.getElementById('saveImageBtn').addEventListener('click', saveAsImage);
+
+async function loadCenter() {
+  cache = {};
+  try {
+    const res = await api('/offday/' + encodeURIComponent(center));
+    if (!res.ok) { const j = await res.json().catch(()=>({})); setStatus(j.error || '불러오지 못했습니다.'); setEnabled(false); return; }
+    (await res.json()).forEach(r => { cache[r.month] = r.data || {}; });
+    setEnabled(true);
+  } catch (e) { if (e.message !== 'auth') { setStatus('서버에 연결하지 못했습니다.'); setEnabled(false); } return; }
+  document.getElementById('centerBadge').textContent = centerName(center);
+  await loadMonth(currentMonth || currentMonthStr(), true);
+  setStatus(Object.keys(cache).length ? '저장된 기록 불러옴' : '신규 입력');
+  renderLog();
+}
+
+async function boot() {
+  currentMonth = currentMonthStr();
+  buildCalendar(currentMonth);
+  setEnabled(false);
+  if (!localStorage.getItem('fnc_token')) { goLogin(); return; }
+  try {
+    const [meRes, cfgRes] = await Promise.all([api('/users/me'), api('/daily/config')]);
+    me = await meRes.json();
+    const cfg = cfgRes.ok ? await cfgRes.json() : null;
+    centers = (cfg && cfg.centers) || [];
+  } catch (e) { if (e.message !== 'auth') setStatus('서버에 연결하지 못했습니다.'); return; }
+
+  const badge = document.getElementById('centerBadge'), sel = document.getElementById('centerSelect');
+  if (me.role === 'admin') {
+    sel.innerHTML = centers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    sel.hidden = false;
+    center = (pendingCenter && centers.some(c => c.id === pendingCenter)) ? pendingCenter : (centers[0] && centers[0].id);
+    sel.value = center;
+    sel.addEventListener('change', () => { center = sel.value; loadCenter(); });
+  } else {
+    badge.hidden = false;
+    center = me.centerId;
+    if (!center) { setStatus('담당 센터가 지정되지 않았습니다. 일일보고현황에서 담당 센터를 먼저 선택하세요.'); return; }
+  }
+  if (me.role === 'admin') badge.hidden = true;
+  await loadCenter();
+}
+
+// 메인 화면 좌측 "관리 센터 선택"(관리자 전용)에서 보낸 센터 전환 메시지
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'fnc-set-center') return;
+  if (!me) { pendingCenter = e.data.centerId; return; }
+  if (me.role !== 'admin' || !centers.some(c => c.id === e.data.centerId)) return;
+  center = e.data.centerId;
+  document.getElementById('centerSelect').value = center;
+  loadCenter();
+});
+
+if (new URLSearchParams(location.search).get('embedded') === '1') document.body.classList.add('is-embedded');
+boot();
+</script>
+</body>
+</html>
